@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fox Rush</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --orange: #ff8c00; --dark-bg: #0b0b0b; --card-bg: #1c1c1c; }
+        body { background: var(--dark-bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; overflow: hidden; user-select: none; }
+
+        /* Шапка как в Хамстере */
+        .top-bar { display: flex; justify-content: space-around; padding: 15px; background: rgba(255,140,0,0.1); border-bottom: 1px solid #333; }
+        .stat-item { text-align: center; font-size: 12px; color: #aaa; }
+        .stat-value { display: block; color: white; font-weight: bold; font-size: 14px; }
+
+        /* Баланс */
+        .balance-container { text-align: center; margin-top: 30px; }
+        .balance-amount { font-size: 48px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .balance-amount img { width: 40px; }
+
+        /* Главная лиса */
+        .fox-main { position: relative; width: 80vw; height: 80vw; max-width: 350px; max-height: 350px; margin: 40px auto; border-radius: 50%; border: 8px solid #222; box-shadow: 0 0 50px rgba(255,140,0,0.2); overflow: hidden; cursor: pointer; transition: transform 0.1s; }
+        .fox-main img { width: 100%; height: 100%; object-fit: cover; }
+        .fox-main:active { transform: scale(0.95); }
+
+        /* Энергия */
+        .energy-section { padding: 0 30px; margin-top: 20px; }
+        .energy-text { display: flex; align-items: center; gap: 5px; font-weight: bold; margin-bottom: 5px; }
+        .progress-bg { width: 100%; height: 12px; background: #333; border-radius: 10px; }
+        #energy-fill { width: 100%; height: 100%; background: linear-gradient(90deg, var(--orange), #ffd700); border-radius: 10px; transition: width 0.2s; }
+
+        /* Нижнее меню */
+        .nav-menu { position: fixed; bottom: 0; width: 100%; display: flex; background: var(--card-bg); padding: 10px 0; border-top: 1px solid #333; }
+        .nav-item { flex: 1; text-align: center; color: #888; font-size: 10px; }
+        .nav-item i { display: block; font-size: 20px; margin-bottom: 3px; }
+        .nav-item.active { color: var(--orange); }
+
+        /* Всплывающий текст +1 */
+        .floating-text { position: absolute; color: white; font-size: 24px; font-weight: bold; pointer-events: none; animation: floatUp 1s ease-out forwards; }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-100px); } }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="stat-item">Прибыль за тап<br><span class="stat-value" id="per-tap">+1</span></div>
+        <div class="stat-item">На запуск<br><span class="stat-value" style="color:var(--orange)">900K</span></div>
+        <div class="stat-item">Прибыль в час<br><span class="stat-value" id="per-hour">+0</span></div>
+    </div>
+
+    <div class="balance-container">
+        <div class="balance-amount">
+            <img src="https://cdn-icons-png.flaticon.com/512/217/217853.png" alt="coin">
+            <span id="balance">0</span>
+        </div>
+    </div>
+
+    <div class="fox-main" id="click-area">
+        <img src="logo.jpg" alt="Fox Rush Logo">
+    </div>
+
+    <div class="energy-section">
+        <div class="energy-text">⚡ <span id="energy">1000</span> / 1000</div>
+        <div class="progress-bg"><div id="energy-fill"></div></div>
+    </div>
+
+    <nav class="nav-menu">
+        <div class="nav-item active"><i class="fas fa-gem"></i>Exchange</div>
+        <div class="nav-item"><i class="fas fa-hammer"></i>Mine</div>
+        <div class="nav-item"><i class="fas fa-users"></i>Friends</div>
+        <div class="nav-item"><i class="fas fa-coins"></i>Earn</div>
+        <div class="nav-item"><i class="fas fa-wallet"></i>Airdrop</div>
+    </nav>
+
+    <script>
+        let balance = 0;
+        let energy = 1000;
+        let pph = 0; // Passive Profit per Hour
+        const perTap = 1;
+
+        const balanceEl = document.getElementById('balance');
+        const energyEl = document.getElementById('energy');
+        const energyFill = document.getElementById('energy-fill');
+        const clickArea = document.getElementById('click-area');
+
+        // Клик по лисе
+        clickArea.addEventListener('click', (e) => {
+            if (energy >= perTap) {
+                balance += perTap;
+                energy -= perTap;
+                updateUI();
+                showFloatingText(e.clientX, e.clientY);
+                
+                // Вибрация (только для телефонов)
+                if (window.Telegram.WebApp.HapticFeedback) {
+                    window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                }
+            }
+        });
+
+        function updateUI() {
+            balanceEl.innerText = Math.floor(balance).toLocaleString();
+            energyEl.innerText = energy;
+            energyFill.style.width = (energy / 10) + '%';
+        }
+
+        function showFloatingText(x, y) {
+            const text = document.createElement('div');
+            text.className = 'floating-text';
+            text.innerText = `+${perTap}`;
+            text.style.left = `${x}px`;
+            text.style.top = `${y}px`;
+            document.body.appendChild(text);
+            setTimeout(() => text.remove(), 1000);
+        }
+
+        // Регенерация энергии (как в оригинале)
+        setInterval(() => {
+            if (energy < 1000) {
+                energy = Math.min(1000, energy + 1);
+                updateUI();
+            }
+        }, 1000);
+
+        // Пассивный доход (начисляется каждую секунду)
+        setInterval(() => {
+            if (pph > 0) {
+                balance += pph / 3600;
+                updateUI();
+            }
+        }, 1000);
+
+        // Инициализация Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Развернуть на весь экран
+        tg.backgroundColor = '#0b0b0b';
+        tg.headerColor = '#0b0b0b';
+    </script>
+</body>
+</html>
