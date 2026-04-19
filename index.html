@@ -205,18 +205,53 @@
         </div>
     </div>
 
-    <div id="shop" class="page">
-        <h2 style="margin-top:25px;">МАЙНИНГ</h2>
+<div id="shop" class="page">
+        <h2 style="margin-top:25px; color:var(--text-main);">МАЙНИНГ</h2>
+        
         <div class="section-title">Сила тапа</div>
         <div class="card">
-            <div style="text-align:left"><b>Острые когти</b><br><small>Тап +2</small><br><span style="color:#ffd700;">1,000</span></div>
+            <div style="text-align:left">
+                <b style="font-size: 16px;">Острые когти</b><br>
+                <small style="color: var(--text-muted);">Тап +2</small><br>
+                <span style="color:#ffd700; font-weight: bold;">1,000</span>
+            </div>
             <button class="buy-btn" onclick="buyItem('tap', 1000, 2, this)">Купить</button>
         </div>
+        <div class="card">
+            <div style="text-align:left">
+                <b style="font-size: 16px;">Лисий прыжок</b><br>
+                <small style="color: var(--text-muted);">Тап +5</small><br>
+                <span style="color:#ffd700; font-weight: bold;">5,000</span>
+            </div>
+            <button class="buy-btn" onclick="buyItem('tap', 5000, 5, this)">Купить</button>
+        </div>
+
         <div class="section-title">Пассивный доход</div>
         <div class="card">
-            <div style="text-align:left"><b>Ночной охотник</b><br><small>+150/час</small><br><span style="color:#ffd700;">500</span></div>
+            <div style="text-align:left">
+                <b style="font-size: 16px;">Ночной охотник</b><br>
+                <small style="color: var(--text-muted);">+150/час</small><br>
+                <span style="color:#ffd700; font-weight: bold;">500</span>
+            </div>
             <button class="buy-btn" onclick="buyItem('mine', 500, 150, this)">Купить</button>
         </div>
+        <div class="card">
+            <div style="text-align:left">
+                <b style="font-size: 16px;">Скрытая нора</b><br>
+                <small style="color: var(--text-muted);">+400/час</small><br>
+                <span style="color:#ffd700; font-weight: bold;">2,500</span>
+            </div>
+            <button class="buy-btn" onclick="buyItem('mine', 2500, 400, this)">Купить</button>
+        </div>
+        <div class="card">
+            <div style="text-align:left">
+                <b style="font-size: 16px;">Лесной альянс</b><br>
+                <small style="color: var(--text-muted);">+1,200/час</small><br>
+                <span style="color:#ffd700; font-weight: bold;">10,000</span>
+            </div>
+            <button class="buy-btn" onclick="buyItem('mine', 10000, 1200, this)">Купить</button>
+        </div>
+    </div>
     </div>
 
     <div id="friends" class="page">
