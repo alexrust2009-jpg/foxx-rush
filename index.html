@@ -5,217 +5,426 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fox Rush</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
     <style>
-        :root { --orange: #ff8c00; --dark-bg: #0b0b0b; --card-bg: #1c1c1c; }
-        body { background: var(--dark-bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; overflow: hidden; user-select: none; }
+        :root {
+            --orange: #ff8c00;
+            --blue: #00e5ff; /* Добавим синий цвет из фона */
+            --dark: #0a0a0a;
+            --overlay: rgba(10, 10, 10, 0.7); /* Оверлей для лучшей читаемости */
+        }
 
-        .page { display: none; height: 100vh; animation: fadeIn 0.2s ease; overflow-y: auto; padding-bottom: 120px; }
-        .page.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        body {
+            /* Подключаем ваш фон */
+            background-image: url('logo.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            
+            /* Делаем оверлей, чтобы затемнить фон и выделить текст */
+            background-color: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            touch-action: manipulation;
+            
+            height: 100vh;
+            width: 100vw;
+        }
 
-        .top-bar { display: flex; justify-content: space-around; padding: 15px; background: var(--dark-bg); border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 10; }
-        .stat-item { text-align: center; font-size: 11px; color: #aaa; }
-        .stat-value { display: block; color: white; font-weight: bold; font-size: 13px; }
+        /* Оверлей для всего приложения */
+        .page::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--overlay);
+            z-index: -1;
+        }
 
-        .balance-container { text-align: center; margin-top: 20px; }
-        .balance-amount { font-size: 40px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .balance-amount img { width: 35px; }
+        /* Страницы */
+        .page {
+            display: none;
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            text-align: center;
+            overflow-y: auto;
+            padding-bottom: 120px; /* Для навигации */
+            box-sizing: border-box;
+            z-index: 1;
+        }
 
-        .fox-main { position: relative; width: 65vw; height: 65vw; max-width: 280px; margin: 15px auto; border-radius: 50%; border: 6px solid #222; box-shadow: 0 0 30px rgba(255,140,0,0.1); overflow: hidden; cursor: pointer; transition: transform 0.05s; }
-        .fox-main img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-        .fox-main.bump { transform: scale(0.92); }
+        .page.active {
+            display: block;
+        }
 
-        .content-area { padding: 20px; }
-        .section-title { color: var(--orange); border-left: 4px solid var(--orange); padding-left: 10px; margin: 20px 0 10px; font-size: 18px; }
-        .card { background: var(--card-bg); padding: 15px; border-radius: 18px; margin-bottom: 12px; border: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-        .card-info h3 { margin: 0; font-size: 15px; color: #eee; }
-        .card-info p { margin: 4px 0 0; font-size: 12px; color: #888; }
-        .buy-btn { background: var(--orange); border: none; padding: 10px 12px; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; min-width: 80px; }
-        .buy-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+        /* Статистика сверху */
+        .top-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border-bottom: 2px solid var(--blue); /* Используем синий */
+            box-shadow: 0 4px 10px rgba(0, 229, 255, 0.3);
+        }
 
-        .nav-menu { position: fixed; bottom: 0; width: 100%; display: flex; background: var(--card-bg); padding: 12px 0; border-top: 1px solid #333; z-index: 20; }
-        .nav-item { flex: 1; text-align: center; color: #666; font-size: 10px; cursor: pointer; }
-        .nav-item i { display: block; font-size: 22px; margin-bottom: 4px; }
-        .nav-item.active { color: var(--orange); }
+        .stat-item {
+            font-size: 11px;
+            color: #aaa;
+            text-transform: uppercase;
+        }
 
-        .energy-section { position: fixed; bottom: 85px; width: 100%; padding: 0 20px; box-sizing: border-box; }
-        .progress-bg { width: 100%; height: 8px; background: #333; border-radius: 10px; }
-        #energy-fill { width: 100%; height: 100%; background: var(--orange); border-radius: 10px; }
+        .stat-val {
+            display: block;
+            font-weight: bold;
+            color: #fff;
+            font-size: 14px;
+            margin-top: 3px;
+        }
 
-        .floating-text { position: absolute; color: white; font-size: 30px; font-weight: bold; pointer-events: none; animation: floatUp 0.8s ease-out forwards; z-index: 100; }
-        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-100px); } }
+        /* Баланс и Лиса */
+        .balance-box {
+            margin-top: 40px;
+            font-size: 48px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            color: var(--blue); /* Используем синий */
+            text-shadow: 0 0 10px var(--blue);
+        }
+
+        .fox-btn {
+            width: 280px;
+            height: 280px;
+            margin: 30px auto;
+            border-radius: 50%;
+            border: 8px solid var(--blue); /* Синий ободок */
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.05s, box-shadow 0.2s;
+            position: relative;
+            z-index: 2;
+            
+            background-color: #000;
+            background-image: url('logo.jpg');
+            background-size: 150%; /* Сделаем его частью фона */
+            background-position: center;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.5);
+        }
+
+        .fox-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+
+        .fox-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 0 50px rgba(255, 140, 0, 0.7); /* Оранжевое свечение при клике */
+        }
+
+        /* Меню навигации */
+        .nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            display: flex;
+            background: rgba(10, 10, 10, 0.95);
+            border-top: 2px solid var(--blue);
+            padding: 12px 0;
+            z-index: 100;
+            box-shadow: 0 -4px 10px rgba(0, 229, 255, 0.2);
+        }
+
+        .nav-btn {
+            flex: 1;
+            color: #666;
+            font-size: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .nav-btn i {
+            display: block;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .nav-btn.active {
+            color: var(--blue);
+            transform: translateY(-3px);
+            text-shadow: 0 0 5px var(--blue);
+        }
+
+        /* Карточки магазина */
+        .card {
+            background: rgba(30, 30, 30, 0.8);
+            margin: 15px 25px;
+            padding: 18px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #333;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: var(--blue);
+        }
+
+        .buy-btn {
+            background: var(--blue);
+            color: #000;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .buy-btn:disabled {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        .buy-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        /* Энергия */
+        .energy-box {
+            position: fixed;
+            bottom: 90px;
+            width: 100%;
+            padding: 0 25px;
+            box-sizing: border-box;
+            z-index: 50;
+        }
+
+        .bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(50, 50, 50, 0.8);
+            border-radius: 10px;
+            margin-top: 5px;
+            border: 1px solid #333;
+        }
+
+        #fill {
+            width: 100%;
+            height: 100%;
+            background: var(--blue);
+            border-radius: 10px;
+            transition: width 0.3s ease-out;
+            box-shadow: 0 0 5px var(--blue);
+        }
+
+        /* Анимация клика */
+        .pop {
+            position: absolute;
+            color: #fff;
+            font-size: 36px;
+            font-weight: bold;
+            pointer-events: none;
+            animation: up 0.7s ease-out forwards;
+            z-index: 1000;
+            text-shadow: 0 0 5px #000;
+        }
+
+        @keyframes up {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-100px);
+            }
+        }
     </style>
 </head>
 <body>
 
-    <div id="exchange" class="page active">
+    <div id="game" class="page active">
         <div class="top-bar">
-            <div class="stat-item">За тап<br><span class="stat-value" id="per-tap-display">+1</span></div>
-            <div class="stat-item">Лига<br><span class="stat-value" style="color:var(--orange)">Fox Master</span></div>
-            <div class="stat-item">Доход в час<br><span class="stat-value" id="pph-display">0</span></div>
+            <div class="stat-item">За тап<br><span id="t-val" class="stat-val">+1</span></div>
+            <div class="stat-item">Лига<br><span class="stat-val" style="color:var(--orange)">Bronze</span></div>
+            <div class="stat-item">Доход/час<br><span id="p-val" class="stat-val">0</span></div>
         </div>
-        <div class="balance-container">
-            <div class="balance-amount"><img src="https://cdn-icons-png.flaticon.com/512/217/217853.png"> <span id="balance">0</span></div>
+        
+        <div class="balance-box">
+            <i class="fas fa-coins" style="font-size: 35px;"></i> <span id="b-disp">0</span>
         </div>
-        <div class="fox-main" id="click-area">
-            <img src="logo.jpg" alt="Fox">
+        
+        <div class="fox-btn" id="clicker">
+            <img src="logo.jpg">
         </div>
-        <div class="energy-section">
-            <div style="font-size: 12px; margin-bottom: 5px;">⚡ <span id="energy">1000</span> / 1000</div>
-            <div class="progress-bg"><div id="energy-fill"></div></div>
+        
+        <div class="energy-box">
+            <div style="font-size: 13px; text-align: left;">⚡ <span id="e-val">1000</span>/1000</div>
+            <div class="bar"><div id="fill"></div></div>
         </div>
     </div>
 
-    <div id="mine" class="page">
-        <div class="content-area">
-            <div class="section-title">Сила тапа</div>
-            <div class="card">
-                <div class="card-info">
-                    <h3>Острые когти</h3>
-                    <p>Тап: +2 монет</p>
-                    <p style="color: #ffd700;">Цена: 1,000</p>
-                </div>
-                <button class="buy-btn" onclick="buyTapUpgrade(1000, 2, this)">Купить</button>
+    <div id="shop" class="page">
+        <h2 style="margin-top:25px; color:var(--blue); text-shadow: 0 0 5px var(--blue);">МАГАЗИН УЛУЧШЕНИЙ</h2>
+        
+        <div class="card">
+            <div style="text-align:left">
+                <b>Острые когти</b><br>
+                <small>Тап +2 монет</small><br>
+                <span style="color:#ffd700">Цена: 1000</span>
             </div>
-            <div class="card">
-                <div class="card-info">
-                    <h3>Лисий прыжок</h3>
-                    <p>Тап: +5 монет</p>
-                    <p style="color: #ffd700;">Цена: 5,000</p>
-                </div>
-                <button class="buy-btn" onclick="buyTapUpgrade(5000, 5, this)">Купить</button>
+            <button class="buy-btn" onclick="buyItem('tap', 1000, 2, this)">Купить</button>
+        </div>
+        
+        <div class="card">
+            <div style="text-align:left">
+                <b>Ночной охотник</b><br>
+                <small>Доход +150/час</small><br>
+                <span style="color:#ffd700">Цена: 500</span>
             </div>
-
-            <div class="section-title">Пассивный доход</div>
-            <div class="card">
-                <div class="card-info">
-                    <h3>Ночной охотник</h3>
-                    <p>Доход: +150 / час</p>
-                    <p style="color: #ffd700;">Цена: 500</p>
-                </div>
-                <button class="buy-btn" onclick="buyPassive(500, 150, this)">Купить</button>
+            <button class="buy-btn" onclick="buyItem('mine', 500, 150, this)">Купить</button>
+        </div>
+        
+        <div class="card">
+            <div style="text-align:left">
+                <b>Скрытая нора</b><br>
+                <small>Доход +400/час</small><br>
+                <span style="color:#ffd700">Цена: 2500</span>
             </div>
-            <div class="card">
-                <div class="card-info">
-                    <h3>Скрытая нора</h3>
-                    <p>Доход: +400 / час</p>
-                    <p style="color: #ffd700;">Цена: 2,500</p>
-                </div>
-                <button class="buy-btn" onclick="buyPassive(2500, 400, this)">Купить</button>
-            </div>
-            <div class="card">
-                <div class="card-info">
-                    <h3>Лесной альянс</h3>
-                    <p>Доход: +1,200 / час</p>
-                    <p style="color: #ffd700;">Цена: 10,000</p>
-                </div>
-                <button class="buy-btn" onclick="buyPassive(10000, 1200, this)">Купить</button>
-            </div>
+            <button class="buy-btn" onclick="buyItem('mine', 2500, 400, this)">Купить</button>
         </div>
     </div>
 
     <div id="friends" class="page">
-        <div class="content-area" style="text-align: center;">
-            <div class="section-title" style="border:none">Твои друзья</div>
-            <div class="card" style="display: block; padding: 30px;">
-                <p>Приглашай друзей и получай бонусы за каждого активного игрока!</p>
-                <button onclick="window.Telegram.WebApp.openTelegramLink('https://t.me/share/url?url=t.me/FoxRush_bot')" style="width:100%; background:#248bcf; border:none; padding:15px; border-radius:12px; color:white; font-weight:bold; margin-top:10px;">Пригласить друга</button>
-            </div>
+        <h2 style="margin-top:25px; color:var(--blue); text-shadow: 0 0 5px var(--blue);">ТВОЯ КОМАНДА</h2>
+        <div class="card" style="flex-direction: column; gap: 15px; padding: 30px; text-align: center;">
+            <i class="fas fa-user-friends" style="font-size: 60px; color: var(--blue);"></i>
+            <p style="margin:10px 0; font-size: 16px;">Приглашай друзей и получай бонусы за каждого нового лиса!</p>
+            <button class="buy-btn" style="width:100%; padding:15px; font-size: 16px;" onclick="invite()">Пригласить друга</button>
         </div>
     </div>
 
-    <nav class="nav-menu">
-        <div class="nav-item active" onclick="showPage('exchange', this)"><i class="fas fa-hand-pointer"></i>Exchange</div>
-        <div class="nav-item" onclick="showPage('mine', this)"><i class="fas fa-bolt"></i>Mine</div>
-        <div class="nav-item" onclick="showPage('friends', this)"><i class="fas fa-user-friends"></i>Friends</div>
+    <div class="nav">
+        <div class="nav-btn active" onclick="showTab('game', this)"><i class="fas fa-coins"></i>Exchange</div>
+        <div class="nav-btn" onclick="showTab('shop', this)"><i class="fas fa-hammer"></i>Mine</div>
+        <div class="nav-btn" onclick="showTab('friends', this)"><i class="fas fa-user-friends"></i>Friends</div>
     </nav>
 
     <script>
-        let balance = 0;
-        let energy = 1000;
-        let pph = 0; 
-        let perTap = 1;
-
+        let balance = 0, energy = 1000, pph = 0, tapValue = 1;
         const tg = window.Telegram.WebApp;
-        tg.expand();
 
-        function showPage(pageId, element) {
+        // Показываем только ту вкладку, на которую нажали
+        function showTab(id, el) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(pageId).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            element.classList.add('active');
-            tg.HapticFeedback.impactOccurred('light');
+            document.getElementById(id).classList.add('active');
+            
+            // Убираем класс 'active' у всех кнопок и добавляем той, что нажали
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            
+            // Легкая вибрация при переключении
+            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
         }
 
-        function buyPassive(price, income, btn) {
+        // Логика покупки в магазине
+        function buyItem(type, price, val, btn) {
             if (balance >= price) {
                 balance -= price;
-                pph += income;
-                btn.innerText = "Куплено";
+                if (type === 'tap') tapValue += val; // Повышаем силу тапа
+                else pph += val; // Повышаем пассивный доход
+                
+                btn.innerText = "OK";
                 btn.disabled = true;
-                updateUI();
-                tg.HapticFeedback.notificationOccurred('success');
+                
+                updateVisuals();
+                if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             } else {
-                tg.showAlert("Нужно больше монет!");
+                tg.showAlert("Недостаточно монет!");
             }
         }
 
-        function buyTapUpgrade(price, bonus, btn) {
-            if (balance >= price) {
-                balance -= price;
-                perTap += bonus;
-                btn.innerText = "Улучшено";
-                btn.disabled = true;
-                updateUI();
-                tg.HapticFeedback.notificationOccurred('success');
-            } else {
-                tg.showAlert("Нужно больше монет!");
-            }
-        }
-
-        const clickArea = document.getElementById('click-area');
-        clickArea.addEventListener('click', (e) => {
+        // Логика тапа по лисе
+        document.getElementById('clicker').onclick = (e) => {
             if (energy > 0) {
-                let actualTap = Math.min(perTap, energy); // Забираем сколько есть энергии, если её меньше силы тапа
-                balance += actualTap;
-                energy -= actualTap;
-                clickArea.classList.add('bump');
-                setTimeout(() => clickArea.classList.remove('bump'), 50);
-                updateUI();
-                createPop(e.clientX, e.clientY, actualTap);
-                tg.HapticFeedback.impactOccurred('medium');
+                let gain = Math.min(tapValue, energy);
+                balance += gain; 
+                energy -= gain;
+                
+                updateVisuals();
+                
+                // Всплывающее число в месте клика
+                let p = document.createElement('div');
+                p.className = 'pop'; p.innerText = `+${gain}`;
+                
+                // Учитываем прокрутку, если она есть
+                p.style.left = e.clientX + 'px'; 
+                p.style.top = e.clientY + 'px';
+                
+                document.body.appendChild(p);
+                // Удаляем число через 0.6 секунды
+                setTimeout(() => p.remove(), 600);
+                
+                // Вибрация средней силы
+                if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
             }
-        });
+        };
 
-        function updateUI() {
-            document.getElementById('balance').innerText = Math.floor(balance).toLocaleString();
-            document.getElementById('energy').innerText = energy;
-            document.getElementById('energy-fill').style.width = (energy/10) + '%';
-            document.getElementById('pph-display').innerText = `+${pph}`;
-            document.getElementById('per-tap-display').innerText = `+${perTap}`;
+        // Логика кнопки "Пригласить друга"
+        function invite() {
+            const link = "https://t.me/FoxRush_bot"; // Ссылка на твоего бота
+            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=Давай тапать лису вместе в Fox Rush!`);
         }
 
-        function createPop(x, y, val) {
-            const el = document.createElement('div');
-            el.className = 'floating-text';
-            el.innerText = `+${val}`;
-            el.style.left = x + 'px';
-            el.style.top = y + 'px';
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 800);
+        // Обновление всех данных на экране
+        function updateVisuals() {
+            document.getElementById('b-disp').innerText = Math.floor(balance).toLocaleString();
+            document.getElementById('e-val').innerText = energy;
+            document.getElementById('fill').style.width = (energy/10) + '%';
+            document.getElementById('p-val').innerText = pph;
+            document.getElementById('t-val').innerText = `+${tapValue}`;
         }
 
-        setInterval(() => {
-            if (energy < 1000) { energy = Math.min(1000, energy + 2); updateUI(); }
+        // Таймеры (интервалы)
+        // 1. Регенерация энергии (+2 в секунду)
+        setInterval(() => { 
+            if(energy < 1000) { 
+                energy = Math.min(1000, energy + 2); 
+                updateVisuals(); 
+            } 
         }, 1000);
-
-        setInterval(() => {
-            if (pph > 0) {
-                balance += (pph / 3600);
-                updateUI();
-            }
+        
+        // 2. Начисление пассивного дохода
+        setInterval(() => { 
+            if(pph > 0) { 
+                balance += (pph/3600); // Распределяем доход на каждую секунду
+                updateVisuals(); 
+            } 
         }, 1000);
+        
+        // Первая отрисовка данных
+        updateVisuals();
+        
+        // Инициализация WebApp
+        tg.expand();
     </script>
 </body>
 </html>
