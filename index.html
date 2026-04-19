@@ -6,288 +6,87 @@
     <title>Fox Rush</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
     <style>
-        :root { --orange: #ff8c00; --dark-bg: #0b0b0b; --card-bg: #1c1c1c; }
-        body { 
-            background: var(--dark-bg); 
-            color: white; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            padding: 0; 
-            overflow: hidden; 
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        /* Страницы */
-        .page { 
-            display: none; 
-            height: 100vh; 
-            width: 100%;
-            overflow-y: auto; 
-            padding-bottom: 120px; 
-            box-sizing: border-box;
-        }
-        .page.active { display: block; }
-
-        /* Верхняя панель */
-        .top-bar { 
-            display: flex; 
-            justify-content: space-around; 
-            padding: 15px; 
-            background: #000; 
-            border-bottom: 1px solid #333;
-        }
-        .stat-item { text-align: center; font-size: 11px; color: #aaa; }
-        .stat-value { display: block; color: white; font-weight: bold; font-size: 14px; }
-
-        /* Главный экран */
-        .balance-container { text-align: center; margin-top: 25px; }
-        .balance-amount { font-size: 42px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        :root { --orange: #ff8c00; --bg: #0b0b0b; --card: #1c1c1c; }
+        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; padding: 0; overflow: hidden; touch-action: manipulation; }
         
-        .fox-main { 
-            width: 280px; 
-            height: 280px; 
-            margin: 20px auto; 
-            border-radius: 50%; 
-            border: 8px solid #222; 
-            box-shadow: 0 0 40px rgba(255,140,0,0.2); 
-            overflow: hidden; 
-            cursor: pointer; 
-            transition: transform 0.05s;
-            position: relative;
-        }
-        .fox-main img { width: 100%; height: 100%; object-fit: cover; }
-        .fox-main.bump { transform: scale(0.95); }
+        /* Страницы */
+        .page { display: none; height: 100vh; width: 100%; position: absolute; top: 0; text-align: center; }
+        .page.active { display: block; }
+        
+        /* Статистика */
+        .top-bar { display: flex; justify-content: space-around; padding: 15px; background: #000; border-bottom: 1px solid #333; }
+        .stat-item { font-size: 11px; color: #aaa; }
+        .stat-val { display: block; font-weight: bold; color: #fff; font-size: 14px; }
 
-        /* Карточки и кнопки */
-        .content-area { padding: 20px; }
-        .card { 
-            background: var(--card-bg); 
-            padding: 15px; 
-            border-radius: 15px; 
-            margin-bottom: 12px; 
-            border: 1px solid #333; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
+        /* Баланс и Лиса */
+        .balance-box { margin-top: 30px; font-size: 42px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .fox-btn { 
+            width: 270px; height: 270px; margin: 30px auto; 
+            border-radius: 50%; border: 8px solid #222; 
+            overflow: hidden; cursor: pointer; transition: transform 0.05s; 
         }
-        .buy-btn { 
-            background: var(--orange); 
-            border: none; 
-            padding: 10px 15px; 
-            border-radius: 10px; 
-            color: white; 
-            font-weight: bold; 
-            cursor: pointer;
-        }
+        .fox-btn img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+        .fox-btn:active { transform: scale(0.95); }
+
+        /* Меню */
+        .nav { position: fixed; bottom: 0; width: 100%; display: flex; background: #161616; border-top: 1px solid #333; padding: 12px 0; z-index: 100; }
+        .nav-btn { flex: 1; color: #666; font-size: 11px; cursor: pointer; text-align: center; }
+        .nav-btn.active { color: var(--orange); }
+        .nav-btn i { display: block; font-size: 22px; margin-bottom: 4px; }
+
+        /* Магазин */
+        .card { background: var(--card); margin: 15px; padding: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
+        .buy-btn { background: var(--orange); border: none; padding: 10px 15px; border-radius: 10px; color: #fff; font-weight: bold; cursor: pointer; }
         .buy-btn:disabled { background: #444; color: #888; }
 
-        /* Нижнее меню */
-        .nav-menu { 
-            position: fixed; 
-            bottom: 0; 
-            width: 100%; 
-            display: flex; 
-            background: #111; 
-            padding: 10px 0; 
-            border-top: 1px solid #333; 
-            z-index: 100;
-        }
-        .nav-item { flex: 1; text-align: center; color: #555; font-size: 11px; cursor: pointer; }
-        .nav-item i { display: block; font-size: 24px; margin-bottom: 4px; }
-        .nav-item.active { color: var(--orange); }
-
         /* Энергия */
-        .energy-section { position: fixed; bottom: 80px; width: 100%; padding: 0 25px; box-sizing: border-box; }
-        .progress-bg { width: 100%; height: 10px; background: #222; border-radius: 10px; margin-top: 5px; }
-        #energy-fill { width: 100%; height: 100%; background: var(--orange); border-radius: 10px; }
+        .energy-box { position: fixed; bottom: 85px; width: 100%; padding: 0 25px; box-sizing: border-box; }
+        .bar { width: 100%; height: 10px; background: #222; border-radius: 10px; margin-top: 5px; }
+        #fill { width: 100%; height: 100%; background: var(--orange); border-radius: 10px; transition: width 0.3s; }
 
-        /* Всплывающий текст */
-        .floating-text { 
-            position: absolute; 
-            color: white; 
-            font-size: 32px; 
-            font-weight: bold; 
-            pointer-events: none; 
-            animation: floatUp 0.7s ease-out forwards; 
-            z-index: 1000;
-        }
-        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-100px); } }
+        /* Анимация клика */
+        .pop { position: absolute; color: #fff; font-size: 32px; font-weight: bold; pointer-events: none; animation: up 0.7s ease-out forwards; }
+        @keyframes up { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-100px); } }
     </style>
 </head>
 <body>
 
-    <div id="exchange-page" class="page active">
+    <div id="game" class="page active">
         <div class="top-bar">
-            <div class="stat-item">За тап<br><span id="per-tap-val" class="stat-value">+1</span></div>
-            <div class="stat-item">Лига<br><span class="stat-value" style="color:var(--orange)">Bronze</span></div>
-            <div class="stat-item">Доход/час<br><span id="pph-val" class="stat-value">0</span></div>
+            <div class="stat-item">За тап<br><span id="t-val" class="stat-val">+1</span></div>
+            <div class="stat-item">Лига<br><span class="stat-val" style="color:var(--orange)">Master</span></div>
+            <div class="stat-item">Доход/час<br><span id="p-val" class="stat-val">0</span></div>
         </div>
-        
-        <div class="balance-container">
-            <div class="balance-amount">
-                <img src="https://cdn-icons-png.flaticon.com/512/217/217853.png" width="35">
-                <span id="balance-display">0</span>
-            </div>
+        <div class="balance-box">
+            <img src="https://cdn-icons-png.flaticon.com/512/217/217853.png" width="35">
+            <span id="b-disp">0</span>
         </div>
-
-        <div class="fox-main" id="click-target">
-            <img src="logo.jpg" alt="Fox Logo">
-        </div>
-
-        <div class="energy-section">
-            <div style="font-size: 13px; text-align: left;">⚡ <span id="energy-val">1000</span> / 1000</div>
-            <div class="progress-bg"><div id="energy-fill"></div></div>
+        <div class="fox-btn" id="clicker"><img src="logo.jpg"></div>
+        <div class="energy-box">
+            <div style="font-size: 13px; text-align: left;">⚡ <span id="e-val">1000</span>/1000</div>
+            <div class="bar"><div id="fill"></div></div>
         </div>
     </div>
 
-    <div id="mine-page" class="page">
-        <div class="content-area">
-            <h2 style="color: var(--orange);">Улучшения</h2>
-            <div class="card">
-                <div style="text-align: left;">
-                    <h3 style="margin:0">Острые когти</h3>
-                    <p style="margin:5px 0; font-size:12px; color:#888">Тап: +2</p>
-                    <p style="margin:0; color:#ffd700">Цена: 1,000</p>
-                </div>
-                <button class="buy-btn" onclick="buyUpgrade('tap', 1000, 2, this)">Купить</button>
-            </div>
-            <div class="card">
-                <div style="text-align: left;">
-                    <h3 style="margin:0">Ночной охотник</h3>
-                    <p style="margin:5px 0; font-size:12px; color:#888">Доход: +150/час</p>
-                    <p style="margin:0; color:#ffd700">Цена: 500</p>
-                </div>
-                <button class="buy-btn" onclick="buyUpgrade('passive', 500, 150, this)">Купить</button>
-            </div>
+    <div id="shop" class="page">
+        <h2 style="margin-top:25px; color:var(--orange)">Магазин</h2>
+        <div class="card">
+            <div style="text-align:left"><b>Острые когти</b><br><small>Тап +2 монет</small><br><span style="color:#ffd700">Цена: 1000</span></div>
+            <button class="buy-btn" onclick="buyItem('tap', 1000, 2, this)">Купить</button>
+        </div>
+        <div class="card">
+            <div style="text-align:left"><b>Ночной охотник</b><br><small>Доход +150/час</small><br><span style="color:#ffd700">Цена: 500</span></div>
+            <button class="buy-btn" onclick="buyItem('mine', 500, 150, this)">Купить</button>
+        </div>
+        <div class="card">
+            <div style="text-align:left"><b>Скрытая нора</b><br><small>Доход +400/час</small><br><span style="color:#ffd700">Цена: 2500</span></div>
+            <button class="buy-btn" onclick="buyItem('mine', 2500, 400, this)">Купить</button>
         </div>
     </div>
 
-    <div id="friends-page" class="page">
-        <div class="content-area">
-            <h2 style="color: var(--orange);">Друзья</h2>
-            <div class="card" style="display: block; padding: 25px; text-align: center;">
-                <p>Твой ID: <b id="display-id">0</b></p>
-                <p>Бонус за друга: <b style="color:#ffd700">+5,000</b></p>
-                <button onclick="inviteFriend()" style="width:100%; background:#248bcf; color:white; border:none; padding:15px; border-radius:12px; font-weight:bold; margin-top:15px;">Пригласить друга</button>
-            </div>
-        </div>
-    </div>
-
-    <nav class="nav-menu">
-        <div class="nav-item active" onclick="switchTab('exchange-page', this)"><i class="fas fa-coins"></i>Exchange</div>
-        <div class="nav-item" onclick="switchTab('mine-page', this)"><i class="fas fa-hammer"></i>Mine</div>
-        <div class="nav-item" onclick="switchTab('friends-page', this)"><i class="fas fa-users"></i>Friends</div>
-    </nav>
-
-    <script>
-        // Инициализация данных
-        let state = {
-            balance: 0,
-            energy: 1000,
-            pph: 0,
-            perTap: 1,
-            userId: '0'
-        };
-
-        const tg = window.Telegram.WebApp;
-        if (tg) {
-            tg.expand();
-            // Получаем данные из URL
-            const params = new URLSearchParams(window.location.search);
-            state.userId = params.get('id') || '0';
-            state.balance = parseInt(params.get('balance')) || 0;
-            document.getElementById('display-id').innerText = state.userId;
-        }
-
-        // Переключение вкладок
-        function switchTab(pageId, el) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(pageId).classList.add('active');
-            
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            el.classList.add('active');
-            
-            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-        }
-
-        // Система тапа
-        const clickArea = document.getElementById('click-target');
-        clickArea.addEventListener('click', (e) => {
-            if (state.energy > 0) {
-                let gain = Math.min(state.perTap, state.energy);
-                state.balance += gain;
-                state.energy -= gain;
-                
-                updateVisuals();
-                showPopup(e.clientX, e.clientY, gain);
-                
-                clickArea.classList.add('bump');
-                setTimeout(() => clickArea.classList.remove('bump'), 50);
-                
-                if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-            }
-        });
-
-        // Покупки
-        function buyUpgrade(type, price, value, btn) {
-            if (state.balance >= price) {
-                state.balance -= price;
-                if (type === 'tap') state.perTap += value;
-                if (type === 'passive') state.pph += value;
-                
-                btn.innerText = "OK";
-                btn.disabled = true;
-                updateVisuals();
-                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-            } else {
-                if (tg) tg.showAlert("Недостаточно монет!");
-            }
-        }
-
-        function updateVisuals() {
-            document.getElementById('balance-display').innerText = Math.floor(state.balance).toLocaleString();
-            document.getElementById('energy-val').innerText = state.energy;
-            document.getElementById('energy-fill').style.width = (state.energy / 10) + '%';
-            document.getElementById('pph-val').innerText = state.pph;
-            document.getElementById('per-tap-val').innerText = `+${state.perTap}`;
-        }
-
-        function showPopup(x, y, val) {
-            const p = document.createElement('div');
-            p.className = 'floating-text';
-            p.innerText = `+${val}`;
-            p.style.left = x + 'px';
-            p.style.top = y + 'px';
-            document.body.appendChild(p);
-            setTimeout(() => p.remove(), 700);
-        }
-
-        function inviteFriend() {
-            const link = `https://t.me/FoxRush_bot?start=${state.userId}`;
-            const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=Присоединяйся к моей лисьей банде!`;
-            if (tg) tg.openTelegramLink(url);
-        }
-
-        // Таймеры
-        setInterval(() => {
-            if (state.energy < 1000) {
-                state.energy = Math.min(1000, state.energy + 2);
-                updateVisuals();
-            }
-        }, 1000);
-
-        setInterval(() => {
-            if (state.pph > 0) {
-                state.balance += (state.pph / 3600);
-                updateVisuals();
-            }
-        }, 1000);
-
-        // Первый запуск
-        updateVisuals();
-    </script>
-</body>
-</html>
+    <div id="friends" class="page">
+        <h2 style="margin-top:25px; color:var(--orange)">Друзья</h2>
+        <div class="card" style="flex-direction: column; gap: 15px; padding: 30px;">
+            <p style="margin:0">Приглашай друзей и получай бонусы!</p>
+            <button class="buy-btn" style="
