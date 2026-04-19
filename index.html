@@ -10,7 +10,7 @@
         :root { --orange: #ff8c00; --dark-bg: #0b0b0b; --card-bg: #1c1c1c; }
         body { background: var(--dark-bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; overflow: hidden; user-select: none; }
 
-        .page { display: none; height: 100vh; animation: fadeIn 0.2s ease; overflow-y: auto; padding-bottom: 120px; }
+        .page { display: none; height: 100vh; animation: fadeIn 0.2s ease; overflow-y: auto; padding-bottom: 120px; text-align: center; }
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -28,10 +28,12 @@
 
         .content-area { padding: 20px; }
         .section-title { color: var(--orange); border-left: 4px solid var(--orange); padding-left: 10px; margin: 20px 0 10px; font-size: 18px; text-align: left; }
+        
         .card { background: var(--card-bg); padding: 15px; border-radius: 18px; margin-bottom: 12px; border: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .card-info { text-align: left; }
         .card-info h3 { margin: 0; font-size: 15px; color: #eee; }
         .card-info p { margin: 4px 0 0; font-size: 12px; color: #888; }
+        
         .buy-btn { background: var(--orange); border: none; padding: 10px 12px; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; min-width: 85px; }
         .buy-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
 
@@ -67,3 +69,132 @@
             <div class="progress-bg"><div id="energy-fill"></div></div>
         </div>
     </div>
+
+    <div id="mine" class="page">
+        <div class="content-area">
+            <div class="section-title">Сила тапа</div>
+            <div class="card">
+                <div class="card-info">
+                    <h3>Острые когти</h3>
+                    <p>Тап: +2 монет</p>
+                    <p style="color: #ffd700;">Цена: 1000</p>
+                </div>
+                <button class="buy-btn" onclick="buyTapUpgrade(1000, 2, this)">Купить</button>
+            </div>
+            <div class="section-title">Пассивный доход</div>
+            <div class="card">
+                <div class="card-info">
+                    <h3>Ночной охотник</h3>
+                    <p>Доход: +150/ч</p>
+                    <p style="color: #ffd700;">Цена: 500</p>
+                </div>
+                <button class="buy-btn" onclick="buyPassive(500, 150, this)">Купить</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="friends" class="page">
+        <div class="content-area">
+            <div class="section-title" style="text-align: center;">Твои друзья</div>
+            <div class="card" style="display: block; padding: 25px;">
+                <p>Твой ID: <b id="my-id" style="color: var(--orange);">0</b></p>
+                <p>Бонус: <b style="color: #ffd700;">+5,000 монет</b></p>
+                <button onclick="shareLink()" style="width:100%; background:#248bcf; border:none; padding:15px; border-radius:12px; color:white; font-weight:bold; margin-top:10px;">Пригласить</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="nav-menu">
+        <div class="nav-item active" onclick="showPage('exchange', this)"><i class="fas fa-hand-pointer"></i>Exchange</div>
+        <div class="nav-item" onclick="showPage('mine', this)"><i class="fas fa-bolt"></i>Mine</div>
+        <div class="nav-item" onclick="showPage('friends', this)"><i class="fas fa-user-friends"></i>Friends</div>
+    </nav>
+
+    <script>
+        let balance = 0;
+        let energy = 1000;
+        let pph = 0; 
+        let perTap = 1;
+
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        // Безопасное получение параметров
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('id') || '0';
+        balance = parseInt(urlParams.get('balance')) || 0;
+        document.getElementById('my-id').innerText = userId;
+
+        function showPage(pageId, element) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            element.classList.add('active');
+        }
+
+        function buyPassive(price, income, btn) {
+            if (balance >= price) {
+                balance -= price;
+                pph += income;
+                btn.innerText = "Куплено";
+                btn.disabled = true;
+                updateUI();
+            }
+        }
+
+        function buyTapUpgrade(price, bonus, btn) {
+            if (balance >= price) {
+                balance -= price;
+                perTap += bonus;
+                btn.innerText = "Улучшено";
+                btn.disabled = true;
+                updateUI();
+            }
+        }
+
+        document.getElementById('click-area').addEventListener('click', (e) => {
+            if (energy > 0) {
+                let tap = Math.min(perTap, energy);
+                balance += tap;
+                energy -= tap;
+                
+                const card = document.getElementById('click-area');
+                card.classList.add('bump');
+                setTimeout(() => card.classList.remove('bump'), 50);
+                
+                updateUI();
+                createPop(e.clientX, e.clientY, tap);
+                if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            }
+        });
+
+        function updateUI() {
+            document.getElementById('balance').innerText = Math.floor(balance).toLocaleString();
+            document.getElementById('energy').innerText = energy;
+            document.getElementById('energy-fill').style.width = (energy/10) + '%';
+            document.getElementById('pph-display').innerText = pph;
+            document.getElementById('per-tap-display').innerText = `+${perTap}`;
+        }
+
+        function createPop(x, y, val) {
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+            el.innerText = `+${val}`;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        function shareLink() {
+            const link = `https://t.me/FoxRush_bot?start=${userId}`;
+            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=Играй со мной!`);
+        }
+
+        setInterval(() => { if (energy < 1000) { energy = Math.min(1000, energy + 2); updateUI(); } }, 1000);
+        setInterval(() => { if (pph > 0) { balance += (pph / 3600); updateUI(); } }, 1000);
+
+        updateUI();
+    </script>
+</body>
+</html>
