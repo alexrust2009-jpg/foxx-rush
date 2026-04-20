@@ -27,6 +27,7 @@
         #fill { width: 100%; height: 100%; background: linear-gradient(90deg, #0099ff, var(--cyan)); transition: width 0.2s; }
         .pop { position: absolute; color: var(--cyan); font-size: 32px; font-weight: 800; pointer-events: none; animation: upAndFade 0.6s forwards; z-index: 1000; }
         @keyframes upAndFade { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-100px); } }
+        .section-title { color: var(--text-muted); font-size: 12px; text-align: left; padding: 0 25px; margin: 25px 0 10px; text-transform: uppercase; }
         .card { background: var(--card-bg); margin: 10px 20px; padding: 18px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; }
         .buy-btn { background: var(--cyan); color: #000; border: none; padding: 12px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; }
     </style>
@@ -35,7 +36,7 @@
     <div id="game" class="page active">
         <div class="top-bar">
             <div class="stat-item">За тап<br><span id="t-val" class="stat-val">+1</span></div>
-            <div class="stat-item">Лига<br><span id="l-val" class="stat-val">Bronze</span></div>
+            <div class="stat-item">Лига<br><span id="l-val" class="stat-val" style="color:var(--bronze)">Bronze</span></div>
             <div class="stat-item">В час<br><span id="p-val" class="stat-val">0</span></div>
         </div>
         <div class="balance-box"><i class="fas fa-coins"></i><span id="b-disp">0</span></div>
@@ -47,10 +48,14 @@
     </div>
     <div id="shop" class="page">
         <h2 style="margin-top:25px;">МАЙНИНГ</h2>
-        <div class="card"><div><b>Острые когти</b><br>+2 к тапу<br>1,000</div><button class="buy-btn" onclick="window.buyItem('tap', 1000, 2, this)">Купить</button></div>
-        <div class="card"><div><b>Ночной охотник</b><br>+150/час<br>500</div><button class="buy-btn" onclick="window.buyItem('mine', 500, 150, this)">Купить</button></div>
+        <div class="section-title">Сила тапа</div>
+        <div class="card"><div><b>Острые когти</b><br><small>Тап +2</small><br>1,000</div><button class="buy-btn" onclick="window.buyItem('tap', 1000, 2, this)">Купить</button></div>
+        <div class="card"><div><b>Лисий прыжок</b><br><small>Тап +5</small><br>5,000</div><button class="buy-btn" onclick="window.buyItem('tap', 5000, 5, this)">Купить</button></div>
+        <div class="section-title">Пассивный доход</div>
+        <div class="card"><div><b>Ночной охотник</b><br><small>+150/час</small><br>500</div><button class="buy-btn" onclick="window.buyItem('mine', 500, 150, this)">Купить</button></div>
+        <div class="card"><div><b>Скрытая нора</b><br><small>+400/час</small><br>2,500</div><button class="buy-btn" onclick="window.buyItem('mine', 2500, 400, this)">Купить</button></div>
     </div>
-    <div id="friends" class="page"><h2 style="margin-top:25px;">ДРУЗЬЯ</h2><div class="card" style="padding: 40px;"><button class="buy-btn" onclick="window.invite()">Приглашить</button></div></div>
+    <div id="friends" class="page"><h2 style="margin-top:25px;">ДРУЗЬЯ</h2><div class="card" style="padding: 40px;"><button class="buy-btn" onclick="window.invite()">Пригласить</button></div></div>
     
     <div class="nav">
         <div class="nav-btn active" onclick="window.showTab('game', this)"><i class="fas fa-coins"></i>Exchange</div>
@@ -69,6 +74,7 @@
         const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "test_user";
 
         window.balance = 0; window.energy = 1000; window.pph = 0; window.tapValue = 1;
+        const LEAGUES = [ { name: "Bronze", min: 0, color: "#cd7f32" }, { name: "Silver", min: 1000, color: "#c0c0c0" }, { name: "Gold", min: 5000, color: "#ffd700" }, { name: "Diamond", min: 15000, color: "#b9f2ff" } ];
         let saveTimeout;
 
         window.loadData = async function() {
@@ -81,7 +87,6 @@
                     window.pph = d.pph || 0;
                     window.tapValue = d.tapValue || 1;
                     window.energy = d.energy !== undefined ? d.energy : 1000;
-
                     if (d.lastSave) {
                         const secondsOffline = Math.floor((Date.now() - d.lastSave) / 1000);
                         const offlineProfit = Math.floor((window.pph / 3600) * secondsOffline);
@@ -90,34 +95,26 @@
                         if (offlineProfit > 0) tg.showAlert(`Доход оффлайн: ${offlineProfit} монет!`);
                     }
                     window.updateVisuals();
-                } else {
-                    // Если игрока нет, создаем его
-                    await setDoc(docRef, { balance: 0, pph: 0, tapValue: 1, energy: 1000, lastSave: Date.now() });
                 }
-            } catch(e) { console.error("Ошибка загрузки:", e); }
+            } catch(e) { console.error(e); }
         };
 
         window.saveData = async function() {
             try {
                 const docRef = doc(db, "players", userId);
-                await updateDoc(docRef, { 
-                    balance: window.balance, 
-                    pph: window.pph, 
-                    tapValue: window.tapValue, 
-                    energy: window.energy, 
-                    lastSave: Date.now() 
-                });
-            } catch (e) { 
-                // Если updateDoc не сработал (документа нет), используем setDoc
-                const docRef = doc(db, "players", userId);
                 await setDoc(docRef, { balance: window.balance, pph: window.pph, tapValue: window.tapValue, energy: window.energy, lastSave: Date.now() }, { merge: true });
-            }
+            } catch (e) { console.error(e); }
         };
 
-        // Быстрое сохранение с задержкой (чтобы не спамить при каждом клике, но сохранить всё)
         window.triggerSave = function() {
             clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(window.saveData, 1000); // Сохранит через 1 сек после последнего клика
+            saveTimeout = setTimeout(window.saveData, 1000);
+        };
+
+        window.updateLeague = function() {
+            let cur = LEAGUES[0];
+            for (let l of LEAGUES) { if (window.balance >= l.min) cur = l; }
+            const el = document.getElementById('l-val'); el.innerText = cur.name; el.style.color = cur.color;
         };
 
         window.updateVisuals = function() {
@@ -126,27 +123,20 @@
             document.getElementById('fill').style.width = (window.energy/10) + '%';
             document.getElementById('p-val').innerText = window.pph.toLocaleString();
             document.getElementById('t-val').innerText = `+${window.tapValue}`;
+            window.updateLeague();
         };
 
         const clicker = document.getElementById('clicker');
         clicker.addEventListener('touchstart', (e) => {
             e.preventDefault();
             if (window.energy >= window.tapValue) {
-                window.balance += window.tapValue; 
-                window.energy -= window.tapValue;
-                
+                window.balance += window.tapValue; window.energy -= window.tapValue;
                 let x = e.touches[0].clientX, y = e.touches[0].clientY;
-                let p = document.createElement('div'); 
-                p.className = 'pop'; 
-                p.innerText = `+${window.tapValue}`;
-                p.style.left = x + 'px'; 
-                p.style.top = y + 'px';
-                document.body.appendChild(p); 
-                setTimeout(() => p.remove(), 600);
-                
+                let p = document.createElement('div'); p.className = 'pop'; p.innerText = `+${window.tapValue}`;
+                p.style.left = x + 'px'; p.style.top = y + 'px';
+                document.body.appendChild(p); setTimeout(() => p.remove(), 600);
                 window.updateVisuals();
-                window.triggerSave(); // Запускаем сохранение
-                
+                window.triggerSave();
                 if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
             }
         });
@@ -161,34 +151,17 @@
 
         window.buyItem = function(t, p, v, b) {
             if (window.balance >= p) {
-                window.balance -= p; 
-                if (t === 'tap') window.tapValue += v; else window.pph += v;
-                window.updateVisuals(); 
-                window.saveData();
+                window.balance -= p; if (t === 'tap') window.tapValue += v; else window.pph += v;
+                window.updateVisuals(); window.saveData();
             }
         };
 
         window.invite = function() { tg.openTelegramLink(`https://t.me/share/url?url=https://t.me/FoxRush_bot`); };
 
-        // Энергия (+1 в сек)
-        setInterval(() => { 
-            if(window.energy < 1000) { 
-                window.energy = Math.min(1000, window.energy + 1); 
-                window.updateVisuals(); 
-            } 
-        }, 1000);
-
-        // Пассивный доход и принудительное сохранение (каждую 1 минуту)
-        setInterval(() => { 
-            if(window.pph > 0) { 
-                window.balance += (window.pph / 60); 
-                window.updateVisuals();
-            } 
-            window.saveData(); 
-        }, 60000);
+        setInterval(() => { if(window.energy < 1000) { window.energy = Math.min(1000, window.energy + 1); window.updateVisuals(); } }, 1000);
+        setInterval(() => { if(window.pph > 0) { window.balance += (window.pph / 60); window.updateVisuals(); } window.saveData(); }, 60000);
         
-        tg.expand(); 
-        window.loadData();
+        tg.expand(); window.loadData();
     </script>
 </body>
 </html>
