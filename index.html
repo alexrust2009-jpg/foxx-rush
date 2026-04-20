@@ -278,7 +278,6 @@
             } catch (e) { console.error("Save error", e); }
         }
 
-        // Моментальное сохранение с защитой от перегрузки (макс 1 сек задержки)
         function triggerSave() {
             if (saveTimeout) clearTimeout(saveTimeout);
             saveTimeout = setTimeout(saveData, 500); 
@@ -293,7 +292,7 @@
 
         window.updateVisuals = function() {
             document.getElementById('b-disp').innerText = Math.floor(window.balance).toLocaleString();
-            document.getElementById('e-val').innerText = window.energy;
+            document.getElementById('e-val').innerText = Math.floor(window.energy);
             document.getElementById('fill').style.width = (window.energy/10) + '%';
             document.getElementById('p-val').innerText = Math.floor(window.pph).toLocaleString();
             document.getElementById('t-val').innerText = `+${window.tapValue}`;
@@ -311,7 +310,7 @@
                 window.balance += gain; window.energy -= gain;
                 createPop(x, y, gain); 
                 updateVisuals();
-                triggerSave(); // Сохраняем после тапа
+                triggerSave(); 
                 if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
             }
         }
@@ -362,7 +361,8 @@
             } 
         }, 1000);
         
-        setInterval(saveData, 30000);
+        // Пассивный доход будет сохраняться принудительно каждые 10 секунд
+        setInterval(saveData, 10000);
         window.addEventListener('beforeunload', saveData);
 
         tg.expand();
