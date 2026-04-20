@@ -35,26 +35,22 @@
     <div id="game" class="page active">
         <div class="top-bar">
             <div class="stat-item">За тап<br><span id="t-val" class="stat-val">+1</span></div>
-            <div class="stat-item">Лига<br><span id="l-val" class="stat-val" style="color:var(--bronze)">Bronze</span></div>
+            <div class="stat-item">Лига<br><span id="l-val" class="stat-val">Bronze</span></div>
             <div class="stat-item">В час<br><span id="p-val" class="stat-val">0</span></div>
         </div>
         <div class="balance-box"><i class="fas fa-coins"></i><span id="b-disp">0</span></div>
         <div class="fox-btn" id="clicker"><img src="logo.jpg" alt="Fox"></div>
         <div class="energy-box">
-            <div style="font-size: 13px; text-align: left; color: var(--text-muted);">⚡ <span id="e-val" style="color: var(--text-main); font-weight: bold;">1000</span> / 1000</div>
+            <div style="font-size: 13px; text-align: left; color: var(--text-muted);">⚡ <span id="e-val">1000</span> / 1000</div>
             <div class="bar"><div id="fill"></div></div>
         </div>
     </div>
     <div id="shop" class="page">
         <h2 style="margin-top:25px;">МАЙНИНГ</h2>
-        <div class="section-title">Сила тапа</div>
-        <div class="card"><div><b>Острые когти</b><br><small>Тап +2</small><br>1,000</div><button class="buy-btn" onclick="buyItem('tap', 1000, 2, this)">Купить</button></div>
-        <div class="card"><div><b>Лисий прыжок</b><br><small>Тап +5</small><br>5,000</div><button class="buy-btn" onclick="buyItem('tap', 5000, 5, this)">Купить</button></div>
-        <div class="section-title">Пассивный доход</div>
-        <div class="card"><div><b>Ночной охотник</b><br><small>+150/час</small><br>500</div><button class="buy-btn" onclick="buyItem('mine', 500, 150, this)">Купить</button></div>
-        <div class="card"><div><b>Скрытая нора</b><br><small>+400/час</small><br>2,500</div><button class="buy-btn" onclick="buyItem('mine', 2500, 400, this)">Купить</button></div>
+        <div class="card"><div><b>Острые когти</b><br>+2 к тапу<br>1,000</div><button class="buy-btn" onclick="buyItem('tap', 1000, 2, this)">Купить</button></div>
+        <div class="card"><div><b>Ночной охотник</b><br>+150/час<br>500</div><button class="buy-btn" onclick="buyItem('mine', 500, 150, this)">Купить</button></div>
     </div>
-    <div id="friends" class="page"><h2 style="margin-top:25px;">ДРУЗЬЯ</h2><div class="card" style="flex-direction: column; padding: 40px; gap: 15px;"><p>Приглашай друзей!</p><button class="buy-btn" style="width: 100%" onclick="invite()">Пригласить</button></div></div>
+    <div id="friends" class="page"><h2 style="margin-top:25px;">ДРУЗЬЯ</h2><div class="card" style="padding: 40px;"><button class="buy-btn" onclick="invite()">Пригласить</button></div></div>
     
     <div class="nav">
         <div class="nav-btn active" onclick="showTab('game', this)"><i class="fas fa-coins"></i>Exchange</div>
@@ -66,14 +62,13 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        const firebaseConfig = { apiKey: "AIzaSyCmPLm7KaL3k9S2sXp_zI5Z_gaMX6mW3M", authDomain: "foxrush-2777e.firebaseapp.com", projectId: "foxrush-2777e", storageBucket: "foxrush-2777e.firebasestorage.app", messagingSenderId: "576027265080", appId: "1:576027265080:web:2bba34cb4846a21d703ecd", measurementId: "G-J63Y2R96GX" };
+        const firebaseConfig = { apiKey: "AIzaSyCmPLm7KaL3k9S2sXp_zI5Z_gaMX6mW3M", authDomain: "foxrush-2777e.firebaseapp.com", projectId: "foxrush-2777e", storageBucket: "foxrush-2777e.firebasestorage.app", messagingSenderId: "576027265080", appId: "1:576027265080:web:2bba34cb4846a21d703ecd" };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const tg = window.Telegram.WebApp;
         const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "test_user";
 
         window.balance = 0; window.energy = 1000; window.pph = 0; window.tapValue = 1;
-        const LEAGUES = [ { name: "Bronze", min: 0, color: "#cd7f32" }, { name: "Silver", min: 1000, color: "#c0c0c0" }, { name: "Gold", min: 5000, color: "#ffd700" }, { name: "Diamond", min: 15000, color: "#b9f2ff" } ];
 
         window.loadData = async function() {
             try {
@@ -81,7 +76,21 @@
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     const d = docSnap.data();
-                    window.balance = d.balance || 0; window.pph = d.pph || 0; window.tapValue = d.tapValue || 1; window.energy = d.energy !== undefined ? d.energy : 1000;
+                    window.balance = d.balance || 0;
+                    window.pph = d.pph || 0;
+                    window.tapValue = d.tapValue || 1;
+                    window.energy = d.energy !== undefined ? d.energy : 1000;
+
+                    if (d.lastSave) {
+                        const secondsOffline = Math.floor((Date.now() - d.lastSave) / 1000);
+                        // Оффлайн доход (пропорционально секундам)
+                        const offlineProfit = Math.floor((window.pph / 3600) * secondsOffline);
+                        window.balance += offlineProfit;
+                        // Восстановление энергии оффлайн (1 ед в сек)
+                        window.energy = Math.min(1000, window.energy + secondsOffline);
+                        
+                        if (offlineProfit > 0) tg.showAlert(`Вы заработали ${offlineProfit} монет за время отсутствия!`);
+                    }
                     window.updateVisuals();
                 }
             } catch(e) { console.log(e); }
@@ -90,96 +99,60 @@
         window.saveData = async function() {
             try {
                 await setDoc(doc(db, "players", userId), { 
-                    balance: window.balance, 
-                    pph: window.pph, 
-                    tapValue: window.tapValue, 
-                    energy: window.energy, 
-                    username: tg.initDataUnsafe?.user?.username || "Unknown", 
-                    lastSave: Date.now() 
+                    balance: window.balance, pph: window.pph, tapValue: window.tapValue, energy: window.energy, lastSave: Date.now() 
                 }, { merge: true });
-            } catch (e) { console.log(e); }
-        };
-
-        let st; window.triggerSave = function() { if (st) clearTimeout(st); st = setTimeout(window.saveData, 500); };
-
-        window.updateLeague = function() {
-            let cur = LEAGUES[0];
-            for (let l of LEAGUES) { if (window.balance >= l.min) cur = l; }
-            const el = document.getElementById('l-val'); el.innerText = cur.name; el.style.color = cur.color;
+            } catch (e) {}
         };
 
         window.updateVisuals = function() {
             document.getElementById('b-disp').innerText = Math.floor(window.balance).toLocaleString();
             document.getElementById('e-val').innerText = Math.floor(window.energy);
             document.getElementById('fill').style.width = (window.energy/10) + '%';
-            document.getElementById('p-val').innerText = Math.floor(window.pph).toLocaleString();
+            document.getElementById('p-val').innerText = window.pph.toLocaleString();
             document.getElementById('t-val').innerText = `+${window.tapValue}`;
-            window.updateLeague();
         };
 
         const clicker = document.getElementById('clicker');
-        function handleTap(e) {
+        clicker.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            let x = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-            let y = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-            if (window.energy > 0) {
-                let g = Math.min(window.tapValue, window.energy);
-                window.balance += g; window.energy -= g;
-                window.createPop(x, y, g); window.updateVisuals(); window.triggerSave();
-                if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            if (window.energy >= window.tapValue) {
+                window.balance += window.tapValue; window.energy -= window.tapValue;
+                let x = e.touches[0].clientX, y = e.touches[0].clientY;
+                let p = document.createElement('div'); p.className = 'pop'; p.innerText = `+${window.tapValue}`;
+                p.style.left = x + 'px'; p.style.top = y + 'px';
+                document.body.appendChild(p); setTimeout(() => p.remove(), 600);
+                window.updateVisuals();
+                if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
             }
-        }
-        clicker.addEventListener('touchstart', handleTap, {passive: false});
-        clicker.addEventListener('mousedown', handleTap);
-
-        window.createPop = function(x, y, v) {
-            let p = document.createElement('div'); p.className = 'pop'; p.innerText = `+${v}`;
-            p.style.left = (x - 20) + 'px'; p.style.top = (y - 40) + 'px';
-            document.body.appendChild(p); setTimeout(() => p.remove(), 600);
-        };
+        });
 
         window.showTab = function(id, el) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            el.classList.add('active'); window.saveData();
+            el.classList.add('active');
+            window.saveData();
         };
 
         window.buyItem = function(t, p, v, b) {
             if (window.balance >= p) {
                 window.balance -= p; if (t === 'tap') window.tapValue += v; else window.pph += v;
-                b.innerText = "OK"; b.disabled = true; window.updateVisuals(); window.saveData();
+                window.updateVisuals(); window.saveData();
             }
         };
 
-        window.invite = function() { tg.openTelegramLink(`https://t.me/share/url?url=https://t.me/FoxRush_bot&text=Играй!`); };
+        window.invite = function() { tg.openTelegramLink(`https://t.me/share/url?url=https://t.me/FoxRush_bot`); };
 
-        // 1. Восстановление энергии
-        setInterval(() => { 
-            if(window.energy < 1000) { 
-                window.energy = Math.min(1000, window.energy + 2); 
-                window.updateVisuals(); 
-            } 
-        }, 1000);
+        // Энергия (каждую секунду)
+        setInterval(() => { if(window.energy < 1000) { window.energy = Math.min(1000, window.energy + 1); window.updateVisuals(); } }, 1000);
 
-        // 2. МОМЕНТАЛЬНОЕ СОХРАНЕНИЕ ЭНЕРГИИ (каждые 5 секунд, если идет рост)
-        setInterval(() => {
-            if (window.energy < 1000) {
-                window.saveData();
-            }
-        }, 5000);
-
-        // 3. Доход раз в 5 минут
+        // Пассивный доход (каждую 1 минуту) + Сохранение в базу
         setInterval(() => { 
             if(window.pph > 0) { 
-                window.balance += (window.pph / 12); 
-                window.updateVisuals(); 
-                window.saveData(); 
+                window.balance += (window.pph / 60); // Доход за минуту
+                window.updateVisuals();
             } 
-        }, 300000);
+            window.saveData(); // Сохраняем и доход, и накопленную энергию
+        }, 60000);
         
-        window.addEventListener('beforeunload', window.saveData);
         tg.expand(); window.loadData();
-    </script>
-</body>
-</html>
