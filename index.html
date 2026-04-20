@@ -27,7 +27,6 @@
         #fill { width: 100%; height: 100%; background: linear-gradient(90deg, #0099ff, var(--cyan)); transition: width 0.2s; }
         .pop { position: absolute; color: var(--cyan); font-size: 32px; font-weight: 800; pointer-events: none; animation: upAndFade 0.6s forwards; z-index: 1000; }
         @keyframes upAndFade { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-100px); } }
-        .section-title { color: var(--text-muted); font-size: 12px; text-align: left; padding: 0 25px; margin: 25px 0 10px; text-transform: uppercase; }
         .card { background: var(--card-bg); margin: 10px 20px; padding: 18px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; }
         .buy-btn { background: var(--cyan); color: #000; border: none; padding: 12px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; }
     </style>
@@ -56,51 +55,68 @@
         <div class="card"><div><b>Скрытая нора</b><br><small>+400/час</small><br>2,500</div><button class="buy-btn" onclick="buyItem('mine', 2500, 400, this)">Купить</button></div>
     </div>
     <div id="friends" class="page"><h2 style="margin-top:25px;">ДРУЗЬЯ</h2><div class="card" style="flex-direction: column; padding: 40px; gap: 15px;"><p>Приглашай друзей!</p><button class="buy-btn" style="width: 100%" onclick="invite()">Пригласить</button></div></div>
+    
     <div class="nav">
         <div class="nav-btn active" onclick="showTab('game', this)"><i class="fas fa-coins"></i>Exchange</div>
         <div class="nav-btn" onclick="showTab('shop', this)"><i class="fas fa-hammer"></i>Mine</div>
         <div class="nav-btn" onclick="showTab('friends', this)"><i class="fas fa-user-friends"></i>Friends</div>
     </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
         const firebaseConfig = { apiKey: "AIzaSyCmPLm7KaL3k9S2sXp_zI5Z_gaMX6mW3M", authDomain: "foxrush-2777e.firebaseapp.com", projectId: "foxrush-2777e", storageBucket: "foxrush-2777e.firebasestorage.app", messagingSenderId: "576027265080", appId: "1:576027265080:web:2bba34cb4846a21d703ecd", measurementId: "G-J63Y2R96GX" };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const tg = window.Telegram.WebApp;
         const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "test_user";
+
         window.balance = 0; window.energy = 1000; window.pph = 0; window.tapValue = 1;
         const LEAGUES = [ { name: "Bronze", min: 0, color: "#cd7f32" }, { name: "Silver", min: 1000, color: "#c0c0c0" }, { name: "Gold", min: 5000, color: "#ffd700" }, { name: "Diamond", min: 15000, color: "#b9f2ff" } ];
-        async function loadData() {
+
+        window.loadData = async function() {
             try {
                 const docRef = doc(db, "players", userId);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     const d = docSnap.data();
                     window.balance = d.balance || 0; window.pph = d.pph || 0; window.tapValue = d.tapValue || 1; window.energy = d.energy !== undefined ? d.energy : 1000;
-                    updateVisuals();
+                    window.updateVisuals();
                 }
             } catch(e) { console.log(e); }
-        }
-        async function saveData() {
+        };
+
+        window.saveData = async function() {
             try {
-                await setDoc(doc(db, "players", userId), { balance: window.balance, pph: window.pph, tapValue: window.tapValue, energy: window.energy, username: tg.initDataUnsafe?.user?.username || "Unknown", lastSave: Date.now() });
+                await setDoc(doc(db, "players", userId), { 
+                    balance: window.balance, 
+                    pph: window.pph, 
+                    tapValue: window.tapValue, 
+                    energy: window.energy, 
+                    username: tg.initDataUnsafe?.user?.username || "Unknown", 
+                    lastSave: Date.now() 
+                }, { merge: true });
             } catch (e) { console.log(e); }
-        }
-        let st; function triggerSave() { if (st) clearTimeout(st); st = setTimeout(saveData, 500); }
-        function updateLeague() {
+        };
+
+        let st; window.triggerSave = function() { if (st) clearTimeout(st); st = setTimeout(window.saveData, 500); };
+
+        window.updateLeague = function() {
             let cur = LEAGUES[0];
             for (let l of LEAGUES) { if (window.balance >= l.min) cur = l; }
             const el = document.getElementById('l-val'); el.innerText = cur.name; el.style.color = cur.color;
-        }
+        };
+
         window.updateVisuals = function() {
             document.getElementById('b-disp').innerText = Math.floor(window.balance).toLocaleString();
             document.getElementById('e-val').innerText = Math.floor(window.energy);
             document.getElementById('fill').style.width = (window.energy/10) + '%';
             document.getElementById('p-val').innerText = Math.floor(window.pph).toLocaleString();
             document.getElementById('t-val').innerText = `+${window.tapValue}`;
-            updateLeague();
+            window.updateLeague();
         };
+
         const clicker = document.getElementById('clicker');
         function handleTap(e) {
             e.preventDefault();
@@ -109,34 +125,61 @@
             if (window.energy > 0) {
                 let g = Math.min(window.tapValue, window.energy);
                 window.balance += g; window.energy -= g;
-                createPop(x, y, g); updateVisuals(); triggerSave();
+                window.createPop(x, y, g); window.updateVisuals(); window.triggerSave();
                 if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
             }
         }
         clicker.addEventListener('touchstart', handleTap, {passive: false});
         clicker.addEventListener('mousedown', handleTap);
-        function createPop(x, y, v) {
+
+        window.createPop = function(x, y, v) {
             let p = document.createElement('div'); p.className = 'pop'; p.innerText = `+${v}`;
             p.style.left = (x - 20) + 'px'; p.style.top = (y - 40) + 'px';
             document.body.appendChild(p); setTimeout(() => p.remove(), 600);
-        }
+        };
+
         window.showTab = function(id, el) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            el.classList.add('active'); saveData();
+            el.classList.add('active'); window.saveData();
         };
+
         window.buyItem = function(t, p, v, b) {
             if (window.balance >= p) {
                 window.balance -= p; if (t === 'tap') window.tapValue += v; else window.pph += v;
-                b.innerText = "OK"; b.disabled = true; updateVisuals(); saveData();
+                b.innerText = "OK"; b.disabled = true; window.updateVisuals(); window.saveData();
             }
         };
+
         window.invite = function() { tg.openTelegramLink(`https://t.me/share/url?url=https://t.me/FoxRush_bot&text=Играй!`); };
-        setInterval(() => { if(window.energy < 1000) { window.energy = Math.min(1000, window.energy + 2); updateVisuals(); } }, 1000);
-        setInterval(() => { if(window.pph > 0) { window.balance += (window.pph / 12); updateVisuals(); saveData(); } }, 300000);
-        window.addEventListener('beforeunload', saveData);
-        tg.expand(); loadData();
+
+        // 1. Восстановление энергии
+        setInterval(() => { 
+            if(window.energy < 1000) { 
+                window.energy = Math.min(1000, window.energy + 2); 
+                window.updateVisuals(); 
+            } 
+        }, 1000);
+
+        // 2. МОМЕНТАЛЬНОЕ СОХРАНЕНИЕ ЭНЕРГИИ (каждые 5 секунд, если идет рост)
+        setInterval(() => {
+            if (window.energy < 1000) {
+                window.saveData();
+            }
+        }, 5000);
+
+        // 3. Доход раз в 5 минут
+        setInterval(() => { 
+            if(window.pph > 0) { 
+                window.balance += (window.pph / 12); 
+                window.updateVisuals(); 
+                window.saveData(); 
+            } 
+        }, 300000);
+        
+        window.addEventListener('beforeunload', window.saveData);
+        tg.expand(); window.loadData();
     </script>
 </body>
 </html>
