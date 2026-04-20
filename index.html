@@ -60,7 +60,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = { apiKey: "AIzaSyCmPLm7KaL3k9S2sXp_zI5Z_gaMX6mW3M", authDomain: "foxrush-2777e.firebaseapp.com", projectId: "foxrush-2777e", storageBucket: "foxrush-2777e.firebasestorage.app", messagingSenderId: "576027265080", appId: "1:576027265080:web:2bba34cb4846a21d703ecd" };
         const app = initializeApp(firebaseConfig);
@@ -69,6 +69,7 @@
         const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "test_user";
 
         window.balance = 0; window.energy = 1000; window.pph = 0; window.tapValue = 1;
+        let saveTimeout;
 
         window.loadData = async function() {
             try {
@@ -86,19 +87,37 @@
                         const offlineProfit = Math.floor((window.pph / 3600) * secondsOffline);
                         window.balance += offlineProfit;
                         window.energy = Math.min(1000, window.energy + secondsOffline);
-                        if (offlineProfit > 0) tg.showAlert(`Вы заработали ${offlineProfit} монет за время отсутствия!`);
+                        if (offlineProfit > 0) tg.showAlert(`Доход оффлайн: ${offlineProfit} монет!`);
                     }
                     window.updateVisuals();
+                } else {
+                    // Если игрока нет, создаем его
+                    await setDoc(docRef, { balance: 0, pph: 0, tapValue: 1, energy: 1000, lastSave: Date.now() });
                 }
-            } catch(e) { console.log("Load error:", e); }
+            } catch(e) { console.error("Ошибка загрузки:", e); }
         };
 
         window.saveData = async function() {
             try {
-                await setDoc(doc(db, "players", userId), { 
-                    balance: window.balance, pph: window.pph, tapValue: window.tapValue, energy: window.energy, lastSave: Date.now() 
-                }, { merge: true });
-            } catch (e) { console.log("Save error:", e); }
+                const docRef = doc(db, "players", userId);
+                await updateDoc(docRef, { 
+                    balance: window.balance, 
+                    pph: window.pph, 
+                    tapValue: window.tapValue, 
+                    energy: window.energy, 
+                    lastSave: Date.now() 
+                });
+            } catch (e) { 
+                // Если updateDoc не сработал (документа нет), используем setDoc
+                const docRef = doc(db, "players", userId);
+                await setDoc(docRef, { balance: window.balance, pph: window.pph, tapValue: window.tapValue, energy: window.energy, lastSave: Date.now() }, { merge: true });
+            }
+        };
+
+        // Быстрое сохранение с задержкой (чтобы не спамить при каждом клике, но сохранить всё)
+        window.triggerSave = function() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(window.saveData, 1000); // Сохранит через 1 сек после последнего клика
         };
 
         window.updateVisuals = function() {
@@ -109,19 +128,25 @@
             document.getElementById('t-val').innerText = `+${window.tapValue}`;
         };
 
-        window.createPop = function(x, y, v) {
-            let p = document.createElement('div'); p.className = 'pop'; p.innerText = `+${v}`;
-            p.style.left = x + 'px'; p.style.top = y + 'px';
-            document.body.appendChild(p); setTimeout(() => p.remove(), 600);
-        };
-
         const clicker = document.getElementById('clicker');
         clicker.addEventListener('touchstart', (e) => {
             e.preventDefault();
             if (window.energy >= window.tapValue) {
-                window.balance += window.tapValue; window.energy -= window.tapValue;
-                window.createPop(e.touches[0].clientX, e.touches[0].clientY, window.tapValue);
+                window.balance += window.tapValue; 
+                window.energy -= window.tapValue;
+                
+                let x = e.touches[0].clientX, y = e.touches[0].clientY;
+                let p = document.createElement('div'); 
+                p.className = 'pop'; 
+                p.innerText = `+${window.tapValue}`;
+                p.style.left = x + 'px'; 
+                p.style.top = y + 'px';
+                document.body.appendChild(p); 
+                setTimeout(() => p.remove(), 600);
+                
                 window.updateVisuals();
+                window.triggerSave(); // Запускаем сохранение
+                
                 if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
             }
         });
@@ -136,21 +161,34 @@
 
         window.buyItem = function(t, p, v, b) {
             if (window.balance >= p) {
-                window.balance -= p; if (t === 'tap') window.tapValue += v; else window.pph += v;
-                window.updateVisuals(); window.saveData();
+                window.balance -= p; 
+                if (t === 'tap') window.tapValue += v; else window.pph += v;
+                window.updateVisuals(); 
+                window.saveData();
             }
         };
 
         window.invite = function() { tg.openTelegramLink(`https://t.me/share/url?url=https://t.me/FoxRush_bot`); };
 
-        setInterval(() => { if(window.energy < 1000) { window.energy = Math.min(1000, window.energy + 1); window.updateVisuals(); } }, 1000);
-
+        // Энергия (+1 в сек)
         setInterval(() => { 
-            if(window.pph > 0) { window.balance += (window.pph / 60); window.updateVisuals(); } 
+            if(window.energy < 1000) { 
+                window.energy = Math.min(1000, window.energy + 1); 
+                window.updateVisuals(); 
+            } 
+        }, 1000);
+
+        // Пассивный доход и принудительное сохранение (каждую 1 минуту)
+        setInterval(() => { 
+            if(window.pph > 0) { 
+                window.balance += (window.pph / 60); 
+                window.updateVisuals();
+            } 
             window.saveData(); 
         }, 60000);
         
-        tg.expand(); window.loadData();
+        tg.expand(); 
+        window.loadData();
     </script>
 </body>
 </html>
