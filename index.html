@@ -6,137 +6,150 @@
     <title>Fox Rush</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
     <style>
-        :root { --cyan: #00e5ff; --bg-dark: #050509; --bg-light: #10121e; --card-bg: rgba(28, 30, 43, 0.9); --text-main: #fff; --text-muted: #8b8e9f; --bronze: #cd7f32; --silver: #c0c0c0; --gold: #ffd700; --diamond: #b9f2ff; }
-        body { background-color: var(--bg-dark); background-image: radial-gradient(circle at top right, rgba(0, 229, 255, 0.05), transparent 400px), linear-gradient(to bottom, var(--bg-dark), var(--bg-light)); color: var(--text-main); font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; overflow: hidden; touch-action: manipulation; height: 100vh; }
-        .page { display: none; height: 100%; width: 100%; position: absolute; top: 0; text-align: center; overflow-y: auto; padding-bottom: 120px; box-sizing: border-box; opacity: 0; transition: opacity 0.3s ease; }
+        :root {
+            --cyan: #00e5ff; --bg-dark: #050509; --bg-light: #10121e; --card-bg: rgba(28, 30, 43, 0.9);
+            --text-main: #fff; --text-muted: #8b8e9f; --bronze: #cd7f32; --silver: #c0c0c0; --gold: #ffd700; --diamond: #b9f2ff;
+        }
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at top right, rgba(0, 229, 255, 0.05), transparent 400px), linear-gradient(to bottom, var(--bg-dark), var(--bg-light));
+            color: var(--text-main); font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; overflow: hidden; touch-action: manipulation; height: 100vh;
+        }
+        .page { display: none; height: 100%; width: 100%; position: absolute; top: 0; text-align: center; overflow-y: auto; padding-bottom: 120px; box-sizing: border-box; opacity: 0; }
         .page.active { display: block; opacity: 1; }
         .top-bar { display: flex; justify-content: space-around; padding: 15px; background: rgba(0, 0, 0, 0.6); border-bottom: 1px solid rgba(0, 229, 255, 0.15); backdrop-filter: blur(5px); }
-        .stat-item { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
         .stat-val { display: block; font-weight: bold; color: var(--text-main); font-size: 14px; margin-top: 3px; }
-        .balance-box { margin-top: 40px; font-size: 48px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--cyan); text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); }
-        .fox-btn { width: 280px; height: 280px; margin: 30px auto; border-radius: 50%; border: 8px solid #1a1c2c; overflow: hidden; cursor: pointer; transition: transform 0.05s; box-shadow: 0 0 30px rgba(0, 229, 255, 0.1); position: relative; -webkit-tap-highlight-color: transparent; }
+        .balance-box { margin-top: 40px; font-size: 48px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--cyan); }
+        .fox-btn { width: 280px; height: 280px; margin: 30px auto; border-radius: 50%; border: 8px solid #1a1c2c; overflow: hidden; cursor: pointer; position: relative; -webkit-tap-highlight-color: transparent; }
         .fox-btn img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-        .fox-btn:active { transform: scale(0.95); }
         .nav { position: fixed; bottom: 0; width: 100%; display: flex; background: rgba(10, 12, 22, 0.95); border-top: 1px solid rgba(0, 229, 255, 0.1); padding: 12px 0; z-index: 100; }
         .nav-btn { flex: 1; color: var(--text-muted); font-size: 11px; cursor: pointer; text-align: center; }
-        .nav-btn i { display: block; font-size: 22px; margin-bottom: 5px; }
         .nav-btn.active { color: var(--cyan); }
+        .nav-btn i { display: block; font-size: 22px; margin-bottom: 5px; }
         .energy-box { position: fixed; bottom: 90px; width: 100%; padding: 0 25px; box-sizing: border-box; }
-        .bar { width: 100%; height: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 10px; margin-top: 6px; overflow: hidden; }
-        #fill { width: 100%; height: 100%; background: linear-gradient(90deg, #0099ff, var(--cyan)); transition: width 0.2s; }
-        .pop { position: absolute; color: var(--cyan); font-size: 32px; font-weight: 800; pointer-events: none; animation: upAndFade 0.6s forwards; z-index: 1000; }
+        .bar { width: 100%; height: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 10px; overflow: hidden; }
+        #fill { width: 100%; height: 100%; background: var(--cyan); transition: width 0.2s; }
+        .pop { position: absolute; color: var(--cyan); font-size: 32px; font-weight: 800; pointer-events: none; animation: upAndFade 0.6s forwards; }
         @keyframes upAndFade { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-100px); } }
-        .section-title { color: var(--text-muted); font-size: 12px; text-align: left; padding: 0 25px; margin: 25px 0 10px; text-transform: uppercase; }
         .card { background: var(--card-bg); margin: 10px 20px; padding: 18px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; }
-        .buy-btn { background: var(--cyan); color: #000; border: none; padding: 12px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        .buy-btn { background: var(--cyan); color: #000; border: none; padding: 12px 20px; border-radius: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
+
     <div id="game" class="page active">
         <div class="top-bar">
-            <div class="stat-item">За тап<br><span id="t-val" class="stat-val">+1</span></div>
-            <div class="stat-item">Лига<br><span id="l-val" class="stat-val" style="color:var(--bronze)">Bronze</span></div>
-            <div class="stat-item">В час<br><span id="p-val" class="stat-val">0</span></div>
+            <div>За тап<br><span id="t-val" class="stat-val">+1</span></div>
+            <div>Лига<br><span id="l-val" class="stat-val">Bronze</span></div>
+            <div>В час<br><span id="p-val" class="stat-val">0</span></div>
         </div>
-        <div class="balance-box"><i class="fas fa-coins"></i><span id="b-disp">0</span></div>
-        <div class="fox-btn" id="clicker"><img src="logo.jpg" alt="Fox"></div>
+        <div class="balance-box"><i class="fas fa-coins"></i> <span id="b-disp">0</span></div>
+        <div class="fox-btn" id="clicker"><img src="logo.jpg" alt="Fox" onerror="this.style.display='none'"></div>
         <div class="energy-box">
-            <div style="font-size: 13px; text-align: left; color: var(--text-muted);">⚡ <span id="e-val" style="color: var(--text-main); font-weight: bold;">1000</span> / 1000</div>
+            <div style="font-size: 13px; text-align: left;">⚡ <span id="e-val">1000</span> / 1000</div>
             <div class="bar"><div id="fill"></div></div>
         </div>
     </div>
+
     <div id="shop" class="page">
         <h2 style="margin-top:25px;">МАЙНИНГ</h2>
-        <div class="section-title">Сила тапа</div>
-        <div class="card"><div><b>Острые когти</b><br><small>Тап +2</small><br>1,000</div><button class="buy-btn" onclick="buyItem('tap', 1000, 2, this)">Купить</button></div>
-        <div class="card"><div><b>Лисий прыжок</b><br><small>Тап +5</small><br>5,000</div><button class="buy-btn" onclick="buyItem('tap', 5000, 5, this)">Купить</button></div>
-        <div class="section-title">Пассивный доход</div>
-        <div class="card"><div><b>Ночной охотник</b><br><small>+150/час</small><br>500</div><button class="buy-btn" onclick="buyItem('mine', 500, 150, this)">Купить</button></div>
-        <div class="card"><div><b>Скрытая нора</b><br><small>+400/час</small><br>2,500</div><button class="buy-btn" onclick="buyItem('mine', 2500, 400, this)">Купить</button></div>
+        <div class="card"><div><b>Острые когти</b><br>1,000</div><button class="buy-btn" onclick="buyItem('tap', 1000, 2, this)">Купить</button></div>
+        <div class="card"><div><b>Ночной охотник</b><br>500</div><button class="buy-btn" onclick="buyItem('mine', 500, 150, this)">Купить</button></div>
     </div>
-    <div id="friends" class="page"><h2 style="margin-top:25px;">ДРУЗЬЯ</h2><div class="card" style="flex-direction: column; padding: 40px; gap: 15px;"><p>Приглашай друзей!</p><button class="buy-btn" style="width: 100%" onclick="invite()">Пригласить</button></div></div>
+
     <div class="nav">
         <div class="nav-btn active" onclick="showTab('game', this)"><i class="fas fa-coins"></i>Exchange</div>
         <div class="nav-btn" onclick="showTab('shop', this)"><i class="fas fa-hammer"></i>Mine</div>
-        <div class="nav-btn" onclick="showTab('friends', this)"><i class="fas fa-user-friends"></i>Friends</div>
     </div>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        const firebaseConfig = { apiKey: "AIzaSyCmPLm7KaL3k9S2sXp_zI5Z_gaMX6mW3M", authDomain: "foxrush-2777e.firebaseapp.com", projectId: "foxrush-2777e", storageBucket: "foxrush-2777e.firebasestorage.app", messagingSenderId: "576027265080", appId: "1:576027265080:web:2bba34cb4846a21d703ecd", measurementId: "G-J63Y2R96GX" };
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+
+    <script>
+        // Инициализация Firebase (совместимый режим)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCmPLm7KaL3k9S2sXp_zI5Z_gaMX6mW3M",
+            authDomain: "foxrush-2777e.firebaseapp.com",
+            projectId: "foxrush-2777e",
+            storageBucket: "foxrush-2777e.firebasestorage.app",
+            messagingSenderId: "576027265080",
+            appId: "1:576027265080:web:2bba34cb4846a21d703ecd"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
         const tg = window.Telegram.WebApp;
         const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "test_user";
+
         window.balance = 0; window.energy = 1000; window.pph = 0; window.tapValue = 1;
-        const LEAGUES = [ { name: "Bronze", min: 0, color: "#cd7f32" }, { name: "Silver", min: 1000, color: "#c0c0c0" }, { name: "Gold", min: 5000, color: "#ffd700" }, { name: "Diamond", min: 15000, color: "#b9f2ff" } ];
+
         async function loadData() {
             try {
-                const docRef = doc(db, "players", userId);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const d = docSnap.data();
-                    window.balance = d.balance || 0; window.pph = d.pph || 0; window.tapValue = d.tapValue || 1; window.energy = d.energy !== undefined ? d.energy : 1000;
-                    updateVisuals();
+                const doc = await db.collection("players").doc(userId).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    window.balance = data.balance || 0;
+                    window.pph = data.pph || 0;
+                    window.tapValue = data.tapValue || 1;
+                    window.energy = data.energy || 1000;
                 }
-            } catch(e) { console.log(e); }
+                updateVisuals();
+            } catch (e) { console.error(e); updateVisuals(); }
         }
+
         async function saveData() {
             try {
-                await setDoc(doc(db, "players", userId), { balance: window.balance, pph: window.pph, tapValue: window.tapValue, energy: window.energy, username: tg.initDataUnsafe?.user?.username || "Unknown", lastSave: Date.now() });
-            } catch (e) { console.log(e); }
+                await db.collection("players").doc(userId).set({
+                    balance: window.balance, pph: window.pph, tapValue: window.tapValue, energy: window.energy,
+                    username: tg.initDataUnsafe?.user?.username || "User"
+                }, { merge: true });
+            } catch (e) { console.error(e); }
         }
-        let st; function triggerSave() { if (st) clearTimeout(st); st = setTimeout(saveData, 500); }
-        function updateLeague() {
-            let cur = LEAGUES[0];
-            for (let l of LEAGUES) { if (window.balance >= l.min) cur = l; }
-            const el = document.getElementById('l-val'); el.innerText = cur.name; el.style.color = cur.color;
-        }
+
         window.updateVisuals = function() {
             document.getElementById('b-disp').innerText = Math.floor(window.balance).toLocaleString();
             document.getElementById('e-val').innerText = Math.floor(window.energy);
-            document.getElementById('fill').style.width = (window.energy/10) + '%';
-            document.getElementById('p-val').innerText = Math.floor(window.pph).toLocaleString();
+            document.getElementById('fill').style.width = (window.energy / 10) + '%';
+            document.getElementById('p-val').innerText = window.pph;
             document.getElementById('t-val').innerText = `+${window.tapValue}`;
-            updateLeague();
         };
-        const clicker = document.getElementById('clicker');
-        function handleTap(e) {
+
+        document.getElementById('clicker').addEventListener('touchstart', function(e) {
             e.preventDefault();
-            let x = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-            let y = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-            if (window.energy > 0) {
-                let g = Math.min(window.tapValue, window.energy);
-                window.balance += g; window.energy -= g;
-                createPop(x, y, g); updateVisuals(); triggerSave();
-                if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            if (window.energy >= window.tapValue) {
+                window.balance += window.tapValue; window.energy -= window.tapValue;
+                let x = e.touches[0].clientX, y = e.touches[0].clientY;
+                let p = document.createElement('div'); p.className = 'pop'; p.innerText = `+${window.tapValue}`;
+                p.style.left = x + 'px'; p.style.top = y + 'px';
+                document.body.appendChild(p); setTimeout(() => p.remove(), 600);
+                updateVisuals();
             }
-        }
-        clicker.addEventListener('touchstart', handleTap, {passive: false});
-        clicker.addEventListener('mousedown', handleTap);
-        function createPop(x, y, v) {
-            let p = document.createElement('div'); p.className = 'pop'; p.innerText = `+${v}`;
-            p.style.left = (x - 20) + 'px'; p.style.top = (y - 40) + 'px';
-            document.body.appendChild(p); setTimeout(() => p.remove(), 600);
-        }
+        });
+
         window.showTab = function(id, el) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            el.classList.add('active'); saveData();
+            el.classList.add('active');
         };
-        window.buyItem = function(t, p, v, b) {
-            if (window.balance >= p) {
-                window.balance -= p; if (t === 'tap') window.tapValue += v; else window.pph += v;
-                b.innerText = "OK"; b.disabled = true; updateVisuals(); saveData();
+
+        window.buyItem = function(type, price, val, btn) {
+            if (window.balance >= price) {
+                window.balance -= price;
+                if (type === 'tap') window.tapValue += val; else window.pph += val;
+                updateVisuals(); saveData();
             }
         };
-        window.invite = function() { tg.openTelegramLink(`https://t.me/share/url?url=https://t.me/FoxRush_bot&text=Играй!`); };
+
+        // Энергия
         setInterval(() => { if(window.energy < 1000) { window.energy = Math.min(1000, window.energy + 2); updateVisuals(); } }, 1000);
+        
+        // Пассивный доход раз в 5 минут
         setInterval(() => { if(window.pph > 0) { window.balance += (window.pph / 12); updateVisuals(); saveData(); } }, 300000);
-        window.addEventListener('beforeunload', saveData);
-        tg.expand(); loadData();
+
+        tg.expand();
+        loadData();
     </script>
 </body>
 </html>
