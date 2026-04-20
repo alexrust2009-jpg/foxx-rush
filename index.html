@@ -47,15 +47,15 @@
     </div>
     <div id="shop" class="page">
         <h2 style="margin-top:25px;">МАЙНИНГ</h2>
-        <div class="card"><div><b>Острые когти</b><br>+2 к тапу<br>1,000</div><button class="buy-btn" onclick="buyItem('tap', 1000, 2, this)">Купить</button></div>
-        <div class="card"><div><b>Ночной охотник</b><br>+150/час<br>500</div><button class="buy-btn" onclick="buyItem('mine', 500, 150, this)">Купить</button></div>
+        <div class="card"><div><b>Острые когти</b><br>+2 к тапу<br>1,000</div><button class="buy-btn" onclick="window.buyItem('tap', 1000, 2, this)">Купить</button></div>
+        <div class="card"><div><b>Ночной охотник</b><br>+150/час<br>500</div><button class="buy-btn" onclick="window.buyItem('mine', 500, 150, this)">Купить</button></div>
     </div>
-    <div id="friends" class="page"><h2 style="margin-top:25px;">ДРУЗЬЯ</h2><div class="card" style="padding: 40px;"><button class="buy-btn" onclick="invite()">Пригласить</button></div></div>
+    <div id="friends" class="page"><h2 style="margin-top:25px;">ДРУЗЬЯ</h2><div class="card" style="padding: 40px;"><button class="buy-btn" onclick="window.invite()">Приглашить</button></div></div>
     
     <div class="nav">
-        <div class="nav-btn active" onclick="showTab('game', this)"><i class="fas fa-coins"></i>Exchange</div>
-        <div class="nav-btn" onclick="showTab('shop', this)"><i class="fas fa-hammer"></i>Mine</div>
-        <div class="nav-btn" onclick="showTab('friends', this)"><i class="fas fa-user-friends"></i>Friends</div>
+        <div class="nav-btn active" onclick="window.showTab('game', this)"><i class="fas fa-coins"></i>Exchange</div>
+        <div class="nav-btn" onclick="window.showTab('shop', this)"><i class="fas fa-hammer"></i>Mine</div>
+        <div class="nav-btn" onclick="window.showTab('friends', this)"><i class="fas fa-user-friends"></i>Friends</div>
     </div>
 
     <script type="module">
@@ -83,17 +83,14 @@
 
                     if (d.lastSave) {
                         const secondsOffline = Math.floor((Date.now() - d.lastSave) / 1000);
-                        // Оффлайн доход (пропорционально секундам)
                         const offlineProfit = Math.floor((window.pph / 3600) * secondsOffline);
                         window.balance += offlineProfit;
-                        // Восстановление энергии оффлайн (1 ед в сек)
                         window.energy = Math.min(1000, window.energy + secondsOffline);
-                        
                         if (offlineProfit > 0) tg.showAlert(`Вы заработали ${offlineProfit} монет за время отсутствия!`);
                     }
                     window.updateVisuals();
                 }
-            } catch(e) { console.log(e); }
+            } catch(e) { console.log("Load error:", e); }
         };
 
         window.saveData = async function() {
@@ -101,7 +98,7 @@
                 await setDoc(doc(db, "players", userId), { 
                     balance: window.balance, pph: window.pph, tapValue: window.tapValue, energy: window.energy, lastSave: Date.now() 
                 }, { merge: true });
-            } catch (e) {}
+            } catch (e) { console.log("Save error:", e); }
         };
 
         window.updateVisuals = function() {
@@ -112,15 +109,18 @@
             document.getElementById('t-val').innerText = `+${window.tapValue}`;
         };
 
+        window.createPop = function(x, y, v) {
+            let p = document.createElement('div'); p.className = 'pop'; p.innerText = `+${v}`;
+            p.style.left = x + 'px'; p.style.top = y + 'px';
+            document.body.appendChild(p); setTimeout(() => p.remove(), 600);
+        };
+
         const clicker = document.getElementById('clicker');
         clicker.addEventListener('touchstart', (e) => {
             e.preventDefault();
             if (window.energy >= window.tapValue) {
                 window.balance += window.tapValue; window.energy -= window.tapValue;
-                let x = e.touches[0].clientX, y = e.touches[0].clientY;
-                let p = document.createElement('div'); p.className = 'pop'; p.innerText = `+${window.tapValue}`;
-                p.style.left = x + 'px'; p.style.top = y + 'px';
-                document.body.appendChild(p); setTimeout(() => p.remove(), 600);
+                window.createPop(e.touches[0].clientX, e.touches[0].clientY, window.tapValue);
                 window.updateVisuals();
                 if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
             }
@@ -143,16 +143,14 @@
 
         window.invite = function() { tg.openTelegramLink(`https://t.me/share/url?url=https://t.me/FoxRush_bot`); };
 
-        // Энергия (каждую секунду)
         setInterval(() => { if(window.energy < 1000) { window.energy = Math.min(1000, window.energy + 1); window.updateVisuals(); } }, 1000);
 
-        // Пассивный доход (каждую 1 минуту) + Сохранение в базу
         setInterval(() => { 
-            if(window.pph > 0) { 
-                window.balance += (window.pph / 60); // Доход за минуту
-                window.updateVisuals();
-            } 
-            window.saveData(); // Сохраняем и доход, и накопленную энергию
+            if(window.pph > 0) { window.balance += (window.pph / 60); window.updateVisuals(); } 
+            window.saveData(); 
         }, 60000);
         
         tg.expand(); window.loadData();
+    </script>
+</body>
+</html>
