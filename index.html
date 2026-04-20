@@ -30,13 +30,15 @@
         .section-title { color: var(--text-muted); font-size: 12px; text-align: left; padding: 0 25px; margin: 25px 0 10px; text-transform: uppercase; }
         .card { background: var(--card-bg); margin: 10px 20px; padding: 18px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; }
         .buy-btn { background: var(--cyan); color: #000; border: none; padding: 12px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        .ref-list { margin: 10px 20px; background: rgba(255,255,255,0.03); border-radius: 12px; padding: 10px; text-align: left; max-height: 200px; overflow-y: auto; }
+        .ref-item { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 14px; color: var(--text-muted); }
     </style>
 </head>
 <body>
     <div id="game" class="page active">
         <div class="top-bar">
             <div class="stat-item">За тап<br><span id="t-val" class="stat-val">+1</span></div>
-            <div class="stat-item">Лига<br><span id="l-val" class="stat-val" style="color:var(--bronze)">Bronze</span></div>
+            <div class="stat-item">Лига<br><span id="l-val" class="stat-val">Bronze</span></div>
             <div class="stat-item">В час<br><span id="p-val" class="stat-val">0</span></div>
         </div>
         <div class="balance-box"><i class="fas fa-coins"></i><span id="b-disp">0</span></div>
@@ -46,6 +48,7 @@
             <div class="bar"><div id="fill"></div></div>
         </div>
     </div>
+
     <div id="shop" class="page">
         <h2 style="margin-top:25px;">МАЙНИНГ</h2>
         <div class="section-title">Сила тапа</div>
@@ -55,7 +58,18 @@
         <div class="card"><div><b>Ночной охотник</b><br><small>+150/час</small><br>500</div><button class="buy-btn" onclick="window.buyItem('mine', 500, 150, this)">Купить</button></div>
         <div class="card"><div><b>Скрытая нора</b><br><small>+400/час</small><br>2,500</div><button class="buy-btn" onclick="window.buyItem('mine', 2500, 400, this)">Купить</button></div>
     </div>
-    <div id="friends" class="page"><h2 style="margin-top:25px;">ДРУЗЬЯ</h2><div class="card" style="padding: 40px;"><button class="buy-btn" onclick="window.invite()">Пригласить</button></div></div>
+
+    <div id="friends" class="page">
+        <h2 style="margin-top:25px;">ДРУЗЬЯ</h2>
+        <div class="card" style="flex-direction: column; padding: 25px; gap: 15px;">
+            <p style="margin:0">За каждого друга +1,000 монет</p>
+            <button class="buy-btn" style="width: 100%" onclick="window.invite()">Пригласить друга</button>
+        </div>
+        <div class="section-title">Ваши приглашенные:</div>
+        <div id="ref-container" class="ref-list">
+            <div class="ref-item">Список пуст...</div>
+        </div>
+    </div>
     
     <div class="nav">
         <div class="nav-btn active" onclick="window.showTab('game', this)"><i class="fas fa-coins"></i>Exchange</div>
@@ -65,13 +79,14 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = { apiKey: "AIzaSyCmPLm7KaL3k9S2sXp_zI5Z_gaMX6mW3M", authDomain: "foxrush-2777e.firebaseapp.com", projectId: "foxrush-2777e", storageBucket: "foxrush-2777e.firebasestorage.app", messagingSenderId: "576027265080", appId: "1:576027265080:web:2bba34cb4846a21d703ecd" };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const tg = window.Telegram.WebApp;
         const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "test_user";
+        const userName = tg.initDataUnsafe?.user?.first_name || "Лисенок";
 
         window.balance = 0; window.energy = 1000; window.pph = 0; window.tapValue = 1;
         const LEAGUES = [ { name: "Bronze", min: 0, color: "#cd7f32" }, { name: "Silver", min: 1000, color: "#c0c0c0" }, { name: "Gold", min: 5000, color: "#ffd700" }, { name: "Diamond", min: 15000, color: "#b9f2ff" } ];
@@ -81,28 +96,50 @@
             try {
                 const docRef = doc(db, "players", userId);
                 const docSnap = await getDoc(docRef);
+                
                 if (docSnap.exists()) {
                     const d = docSnap.data();
                     window.balance = d.balance || 0;
                     window.pph = d.pph || 0;
                     window.tapValue = d.tapValue || 1;
                     window.energy = d.energy !== undefined ? d.energy : 1000;
+                    if(d.referrals) window.renderRefs(d.referrals);
+                    
                     if (d.lastSave) {
                         const secondsOffline = Math.floor((Date.now() - d.lastSave) / 1000);
                         const offlineProfit = Math.floor((window.pph / 3600) * secondsOffline);
                         window.balance += offlineProfit;
                         window.energy = Math.min(1000, window.energy + secondsOffline);
-                        if (offlineProfit > 0) tg.showAlert(`Доход оффлайн: ${offlineProfit} монет!`);
                     }
-                    window.updateVisuals();
+                } else {
+                    const startParam = tg.initDataUnsafe?.start_param;
+                    if (startParam && startParam !== userId) {
+                        const referrerRef = doc(db, "players", startParam);
+                        const referrerSnap = await getDoc(referrerRef);
+                        if (referrerSnap.exists()) {
+                            await updateDoc(referrerRef, {
+                                balance: (referrerSnap.data().balance || 0) + 1000,
+                                referrals: arrayUnion(userName)
+                            });
+                        }
+                    }
+                    await setDoc(docRef, { balance: 0, pph: 0, tapValue: 1, energy: 1000, referrals: [], lastSave: Date.now() });
                 }
+                window.updateVisuals();
             } catch(e) { console.error(e); }
+        };
+
+        window.renderRefs = function(refs) {
+            const container = document.getElementById('ref-container');
+            if(refs.length > 0) {
+                container.innerHTML = refs.map(name => `<div class="ref-item"><i class="fas fa-user"></i> ${name}</div>`).join('');
+            }
         };
 
         window.saveData = async function() {
             try {
                 const docRef = doc(db, "players", userId);
-                await setDoc(docRef, { balance: window.balance, pph: window.pph, tapValue: window.tapValue, energy: window.energy, lastSave: Date.now() }, { merge: true });
+                await updateDoc(docRef, { balance: window.balance, pph: window.pph, tapValue: window.tapValue, energy: window.energy, lastSave: Date.now() });
             } catch (e) { console.error(e); }
         };
 
@@ -111,19 +148,15 @@
             saveTimeout = setTimeout(window.saveData, 1000);
         };
 
-        window.updateLeague = function() {
-            let cur = LEAGUES[0];
-            for (let l of LEAGUES) { if (window.balance >= l.min) cur = l; }
-            const el = document.getElementById('l-val'); el.innerText = cur.name; el.style.color = cur.color;
-        };
-
         window.updateVisuals = function() {
             document.getElementById('b-disp').innerText = Math.floor(window.balance).toLocaleString();
             document.getElementById('e-val').innerText = Math.floor(window.energy);
             document.getElementById('fill').style.width = (window.energy/10) + '%';
             document.getElementById('p-val').innerText = window.pph.toLocaleString();
             document.getElementById('t-val').innerText = `+${window.tapValue}`;
-            window.updateLeague();
+            let cur = LEAGUES[0];
+            for (let l of LEAGUES) { if (window.balance >= l.min) cur = l; }
+            const el = document.getElementById('l-val'); el.innerText = cur.name; el.style.color = cur.color;
         };
 
         const clicker = document.getElementById('clicker');
@@ -131,12 +164,10 @@
             e.preventDefault();
             if (window.energy >= window.tapValue) {
                 window.balance += window.tapValue; window.energy -= window.tapValue;
-                let x = e.touches[0].clientX, y = e.touches[0].clientY;
                 let p = document.createElement('div'); p.className = 'pop'; p.innerText = `+${window.tapValue}`;
-                p.style.left = x + 'px'; p.style.top = y + 'px';
+                p.style.left = e.touches[0].clientX + 'px'; p.style.top = e.touches[0].clientY + 'px';
                 document.body.appendChild(p); setTimeout(() => p.remove(), 600);
-                window.updateVisuals();
-                window.triggerSave();
+                window.updateVisuals(); window.triggerSave();
                 if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
             }
         });
@@ -156,7 +187,10 @@
             }
         };
 
-        window.invite = function() { tg.openTelegramLink(`https://t.me/share/url?url=https://t.me/FoxRush_bot`); };
+        window.invite = function() {
+            const inviteLink = `https://t.me/FoxRush_bot?start=${userId}`;
+            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=Заходи в FoxRush и получай бонусы!`);
+        };
 
         setInterval(() => { if(window.energy < 1000) { window.energy = Math.min(1000, window.energy + 1); window.updateVisuals(); } }, 1000);
         setInterval(() => { if(window.pph > 0) { window.balance += (window.pph / 60); window.updateVisuals(); } window.saveData(); }, 60000);
