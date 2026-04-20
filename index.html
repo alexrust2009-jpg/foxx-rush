@@ -15,6 +15,10 @@
             --card-bg: rgba(28, 30, 43, 0.9);
             --text-main: #fff;
             --text-muted: #8b8e9f;
+            --bronze: #cd7f32;
+            --silver: #c0c0c0;
+            --gold: #ffd700;
+            --diamond: #b9f2ff;
         }
 
         body {
@@ -174,7 +178,7 @@
     <div id="game" class="page active">
         <div class="top-bar">
             <div class="stat-item">За тап<br><span id="t-val" class="stat-val">+1</span></div>
-            <div class="stat-item">Лига<br><span id="l-val" class="stat-val" style="color:var(--cyan)">Master</span></div>
+            <div class="stat-item">Лига<br><span id="l-val" class="stat-val" style="color:var(--bronze)">Bronze</span></div>
             <div class="stat-item">В час<br><span id="p-val" class="stat-val">0</span></div>
         </div>
         
@@ -240,6 +244,13 @@
 
         window.balance = 0; window.energy = 1000; window.pph = 0; window.tapValue = 1;
 
+        const LEAGUES = [
+            { name: "Bronze", min: 0, color: "#cd7f32" },
+            { name: "Silver", min: 1000, color: "#c0c0c0" },
+            { name: "Gold", min: 5000, color: "#ffd700" },
+            { name: "Diamond", min: 15000, color: "#b9f2ff" }
+        ];
+
         async function loadData() {
             const docRef = doc(db, "players", userId);
             const docSnap = await getDoc(docRef);
@@ -248,19 +259,36 @@
                 window.balance = data.balance || 0;
                 window.pph = data.pph || 0;
                 window.tapValue = data.tapValue || 1;
+                window.energy = data.energy !== undefined ? data.energy : 1000;
                 updateVisuals();
             }
         }
 
+        let saveTimeout;
         async function saveData() {
             try {
                 await setDoc(doc(db, "players", userId), {
                     balance: window.balance,
                     pph: window.pph,
                     tapValue: window.tapValue,
+                    energy: window.energy,
+                    username: tg.initDataUnsafe?.user?.username || "Unknown",
                     lastSave: Date.now()
                 });
             } catch (e) { console.error("Save error", e); }
+        }
+
+        // Моментальное сохранение с защитой от перегрузки (макс 1 сек задержки)
+        function triggerSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(saveData, 500); 
+        }
+
+        function updateLeague() {
+            let current = LEAGUES[0];
+            for (let l of LEAGUES) { if (window.balance >= l.min) current = l; }
+            const lEl = document.getElementById('l-val');
+            lEl.innerText = current.name; lEl.style.color = current.color;
         }
 
         window.updateVisuals = function() {
@@ -269,6 +297,7 @@
             document.getElementById('fill').style.width = (window.energy/10) + '%';
             document.getElementById('p-val').innerText = Math.floor(window.pph).toLocaleString();
             document.getElementById('t-val').innerText = `+${window.tapValue}`;
+            updateLeague();
         };
 
         const clicker = document.getElementById('clicker');
@@ -280,7 +309,9 @@
             if (window.energy > 0) {
                 let gain = Math.min(window.tapValue, window.energy);
                 window.balance += gain; window.energy -= gain;
-                createPop(x, y, gain); updateVisuals();
+                createPop(x, y, gain); 
+                updateVisuals();
+                triggerSave(); // Сохраняем после тапа
                 if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
             }
         }
@@ -317,13 +348,22 @@
             tg.openTelegramLink(`https://t.me/share/url?url=https://t.me/FoxRush_bot&text=Играй со мной в Fox Rush!`);
         };
 
-        setInterval(() => { if(window.energy < 1000) { window.energy = Math.min(1000, window.energy + 2); updateVisuals(); } }, 1000);
-        setInterval(() => { if(window.pph > 0) { window.balance += (window.pph/3600); updateVisuals(); } }, 1000);
+        setInterval(() => { 
+            if(window.energy < 1000) { 
+                window.energy = Math.min(1000, window.energy + 2); 
+                updateVisuals(); 
+            } 
+        }, 1000);
+
+        setInterval(() => { 
+            if(window.pph > 0) { 
+                window.balance += (window.pph/3600); 
+                updateVisuals(); 
+            } 
+        }, 1000);
         
-        // Автосохранение каждые 20 секунд + сохранение при скрытии приложения
-        setInterval(saveData, 20000);
+        setInterval(saveData, 30000);
         window.addEventListener('beforeunload', saveData);
-        tg.onEvent('viewportChanged', (data) => { if (data.isStateStable) saveData(); });
 
         tg.expand();
         loadData();
