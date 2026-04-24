@@ -1,6 +1,7 @@
 import os
 import asyncio
 import logging
+import time
 from flask import Flask
 from threading import Thread
 from aiogram import Bot, Dispatcher, types
@@ -17,15 +18,17 @@ app = Flask('')
 
 @app.route('/')
 def home():
+    # Этот текст подтверждает, что сервер прошел проверку Render
     return "FoxRush Bot is Online!"
 
 def run_flask():
-    # Порт для Render
+    # Получаем порт от Render или используем 10000 по умолчанию
     port = int(os.environ.get("PORT", 10000))
+    logger.info(f"Flask запускается на порту {port}...")
     app.run(host='0.0.0.0', port=port)
 
 # --- 3. НАСТРОЙКИ БОТА ---
-# Твой новый токен
+# Твой токен (уже вписан)
 API_TOKEN = "8675521925:AAEX-QViQGct02fz0HgQ-kjUM5EKyoMelhI"
 
 bot = Bot(token=API_TOKEN)
@@ -42,26 +45,32 @@ async def start_handler(message: types.Message):
 
     await message.answer(
         f"Привет, {message.from_user.first_name}! 🦊\n\n"
-        "Добро пожаловать в FoxRush. Нажимай на кнопку ниже, чтобы начать игру!",
+        "Добро пожаловать в FoxRush! Нажми кнопку ниже, чтобы запустить игру.",
         reply_markup=builder.as_markup()
     )
 
-# --- 4. ГЛАВНЫЙ ЗАПУСК ---
-async def main():
-    # Запуск Flask в отдельном потоке
-    Thread(target=run_flask, daemon=True).start()
-    
-    logger.info("--- ВЕБ-СЕРВЕР ЗАПУЩЕН ---")
-
-    # Очистка очереди (удаляет старые сообщения перед стартом)
+# --- 4. ГЛАВНАЯ ФУНКЦИЯ ---
+async def main_bot():
+    logger.info("Очистка очереди обновлений...")
+    # drop_pending_updates=True удаляет сообщения, пришедшие пока бот спал
     await bot.delete_webhook(drop_pending_updates=True)
     
-    logger.info("--- БОТ ЗАПУСКАЕТСЯ ---")
-    
+    logger.info("Запуск polling (опроса Telegram)...")
     await dp.start_polling(bot)
 
+# --- 5. ТОЧКА ВХОДА ---
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        # Шаг A: Запускаем Flask в фоновом потоке
+        server_thread = Thread(target=run_flask, daemon=True)
+        server_thread.start()
+        
+        # Шаг B: Даем серверу 3 секунды, чтобы Render его "увидел"
+        logger.info("Ожидание стабилизации сервера (3 сек)...")
+        time.sleep(3)
+        
+        # Шаг C: Запускаем асинхронную часть бота
+        asyncio.run(main_bot())
+        
     except (KeyboardInterrupt, SystemExit):
-        logger.info("Бот остановлен")
+        logger.info("Бот полностью остановлен.")
